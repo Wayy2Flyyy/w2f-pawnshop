@@ -925,3 +925,92 @@ body {
     font-size: 0.65rem;
     color: var(--pawn-gold);
 }
+
+.pawn-store-desc {
+    font-size: 0.72rem;
+    color: var(--pawn-muted);
+    line-height: 1.35;
+    margin: 4px 0;
+}
+
+.pawn-empty-state {
+    font-family: var(--pawn-font-dialog);
+    font-size: 0.95rem;
+    color: var(--pawn-muted);
+    text-align: center;
+    padding: 20px 8px;
+}
+
+.pawn-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.55);
+    font-size: 0.85rem;
+    color: var(--pawn-gold);
+}
+
+.pawn-loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--pawn-border);
+    border-top-color: var(--pawn-gold);
+    border-radius: 50%;
+    animation: pawn-spin 0.7s linear infinite;
+}
+
+@keyframes pawn-spin {
+    to { transform: rotate(360deg); }
+}
+
+.pawn-rejection-view {
+    padding: 8px 0;
+    animation: pawn-fade-in 0.2s ease;
+}
+
+.pawn-rejection-title {
+    font-family: var(--pawn-font-dialog);
+    font-size: 1.1rem;
+    color: #c45c3a;
+    margin-bottom: 10px;
+}
+
+.pawn-rejection-msg {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--pawn-muted);
+    margin-bottom: 14px;
+}
+
+.pawn-theme-bm {
+    border-color: #3d2e22;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(120, 80, 40, 0.15);
+}
+
+.pawn-theme-bm .pawn-header {
+    background: linear-gradient(180deg, #1a1410 0%, #121110 100%);
+}
+
+.pawn-theme-bm .pawn-owner-name {
+    color: #b8860b;
+}
+
+.pawn-theme-bm .pawn-store-card {
+    background: #0f0e0d;
+    border-color: #2a2218;
+}
+
+.pawn-theme-bm .pawn-cart-panel {
+    background: #0c0b0a;
+    border-color: #2a2218;
+}
+
+.pawn-exclusive-badge {
+    background: #5c3d1e;
+}
+

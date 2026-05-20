@@ -41,6 +41,7 @@ function Database.Init()
 
         Database.ready = true
         Stock.EnsureAll()
+        BlackMarketStock.EnsureAll()
         debugPrint('Schema ready')
     end)
 end

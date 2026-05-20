@@ -1,26 +1,27 @@
-local function debugPrint(...)
-    if not Config.Debug then return end
-    print(('[w2f-pawnshop][client] %s'):format(table.concat({ ... }, ' ')))
-end
-
 local function bootstrap()
     Bridge.Init()
 
     local ped = PawnPed.Spawn()
-    if not ped then
-        debugPrint('Failed to spawn pawnshop ped — check Config.Ped')
-        return
+    if ped then
+        PawnTarget.Register(ped)
+    else
+        Dbg.Print('client', 'Pawnshop ped failed — check Config.Ped')
     end
 
-    PawnTarget.Register(ped)
-    debugPrint('Pawnshop client ready')
+    local bmPed = BlackMarketPed.Spawn()
+    if bmPed then
+        BlackMarketTarget.Register(bmPed)
+    else
+        Dbg.Print('client', 'Black market ped failed — check Config.BlackMarket.Ped')
+    end
+
+    Dbg.Print('client', 'Ready')
 end
 
 CreateThread(function()
     while not NetworkIsPlayerActive(PlayerId()) do
         Wait(500)
     end
-
     bootstrap()
 end)
 
@@ -30,6 +31,11 @@ AddEventHandler('onResourceStop', function(resourceName)
     if PawnPed.entity then
         PawnTarget.Remove(PawnPed.entity)
     end
-    PawnNui.CloseDialog()
+    if BlackMarketPed.entity then
+        BlackMarketTarget.Remove(BlackMarketPed.entity)
+    end
+
+    PawnNui.CloseAll()
     PawnPed.Delete()
+    BlackMarketPed.Delete()
 end)

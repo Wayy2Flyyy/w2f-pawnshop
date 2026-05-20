@@ -10,12 +10,7 @@ local function getOwnedCount(source, itemName)
 end
 
 local function sanitizeAmount(amount)
-    amount = math.floor(tonumber(amount) or 0)
-    if amount <= 0 then return nil end
-    if amount > Config.MaxSellPerAction then
-        return Config.MaxSellPerAction
-    end
-    return amount
+    return Security.SanitizeQuantity(amount, Config.MaxSellPerAction)
 end
 
 --- Server-side purchase eligibility (loyalty level + category + item rule).
@@ -90,6 +85,19 @@ function Transactions.LogSell(source, identifier, itemName, amount, unitPrice, t
 end
 
 function Transactions.ProcessSell(source, itemName, amount)
+    if not Security.ValidateSource(source) then
+        return { ok = false, error = 'invalid_source' }
+    end
+
+    if type(itemName) ~= 'string' or not Items.IsSellable(itemName) then
+        return { ok = false, error = 'invalid_item' }
+    end
+
+    if not Security.TryLock(source) then
+        return { ok = false, error = 'busy' }
+    end
+
+    local ok, result = pcall(function()
     local cfg = Items.Get(itemName)
     if not cfg then
         return { ok = false, error = 'invalid_item' }
@@ -164,6 +172,13 @@ function Transactions.ProcessSell(source, itemName, amount)
         items = items,
         loyalty = LoyaltyServer.GetProfile(source),
     }
+    end)
+
+    Security.Unlock(source)
+    if not ok then
+        return { ok = false, error = 'server_error' }
+    end
+    return result
 end
 
 function Transactions.BuildStorefront(source, mode)
@@ -249,8 +264,8 @@ local function normalizeCart(cart)
             return nil, 'invalid_item'
         end
 
-        local qty = math.floor(tonumber(entry.quantity or entry.amount) or 0)
-        if qty <= 0 then
+        local qty = Security.SanitizeQuantity(entry.quantity or entry.amount, Config.CartMaxPerCheckout)
+        if not qty then
             return nil, 'invalid_amount'
         end
 
@@ -278,6 +293,15 @@ local function normalizeCart(cart)
 end
 
 function Transactions.ProcessCheckout(source, cart)
+    if not Security.ValidateSource(source) then
+        return { ok = false, error = 'invalid_source' }
+    end
+
+    if not Security.TryLock(source) then
+        return { ok = false, error = 'busy' }
+    end
+
+    local ok, result = pcall(function()
     if not Bridge.IsFramework() then
         return { ok = false, error = 'no_framework' }
     end
@@ -367,10 +391,8 @@ function Transactions.ProcessCheckout(source, cart)
         delivered[#delivered + 1] = v
 
         if not Stock.Remove(v.item, v.quantity) then
-            exports.ox_inventory:RemoveItem(source, v.item, v.quantity)
-            for j = 1, #delivered - 1 do
-                local d = delivered[j]
-                exports.ox_inventory:RemoveItem(source, d.item, d.quantity)
+            for j = 1, #delivered do
+                exports.ox_inventory:RemoveItem(source, delivered[j].item, delivered[j].quantity)
             end
             for j = 1, #stockReduced do
                 local s = stockReduced[j]
@@ -398,4 +420,11 @@ function Transactions.ProcessCheckout(source, cart)
         playerMoney = Bridge.GetMoney(source, Config.DefaultBuyAccount),
         loyalty = LoyaltyServer.GetProfile(source),
     }
+    end)
+
+    Security.Unlock(source)
+    if not ok then
+        return { ok = false, error = 'server_error' }
+    end
+    return result
 end

@@ -42,8 +42,8 @@ end
 ---@param amount number
 ---@return boolean
 function Stock.Add(itemName, amount)
-    amount = math.floor(tonumber(amount) or 0)
-    if amount <= 0 or not Items.IsSellable(itemName) then return false end
+    amount = Security.SanitizeQuantity(amount, Security.maxQuantity)
+    if not amount or not Items.IsSellable(itemName) then return false end
 
     MySQL.update.await(
         'UPDATE w2f_pawnshop_stock SET quantity = quantity + ? WHERE item = ?',
@@ -73,8 +73,8 @@ end
 ---@param amount number
 ---@return boolean
 function Stock.Remove(itemName, amount)
-    amount = math.floor(tonumber(amount) or 0)
-    if amount <= 0 or not Items.IsSellable(itemName) then return false end
+    amount = Security.SanitizeQuantity(amount, Security.maxQuantity)
+    if not amount or not Items.IsSellable(itemName) then return false end
 
     local affected = MySQL.update.await(
         'UPDATE w2f_pawnshop_stock SET quantity = quantity - ? WHERE item = ? AND quantity >= ?',

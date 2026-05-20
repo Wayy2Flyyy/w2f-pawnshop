@@ -21,6 +21,10 @@
     const sellBackBtn = document.getElementById('pawn-sell-back');
     const storeBackBtn = document.getElementById('pawn-store-back');
     const checkoutBtn = document.getElementById('pawn-checkout-btn');
+    const rejectionView = document.getElementById('pawn-rejection-view');
+    const rejectionClose = document.getElementById('pawn-rejection-close');
+    const loadingEl = document.getElementById('pawn-loading');
+    let uiBusy = false;
     const loyaltyStrip = document.getElementById('pawn-loyalty-strip');
     const sellLoyaltyPanel = document.getElementById('pawn-sell-loyalty');
     const sellDemandedEl = document.getElementById('pawn-sell-demanded');
@@ -39,6 +43,8 @@
         insufficient_stock: 'Not enough stock for that item.',
         insufficient_funds: 'You cannot afford this purchase.',
         loyalty_locked: 'Your loyalty level is too low for an item in your cart.',
+        loyalty_too_low: 'You need more reputation before the dealer will see you.',
+        busy: 'Please wait for the current action to finish.',
         inventory_full: 'Not enough inventory space.',
         payment_failed: 'Payment failed.',
         not_owned: 'You no longer have that item.',
@@ -150,18 +156,38 @@
         sellStatus.classList.toggle('pawn-sell-status-error', !!isError);
     }
 
+    function setBusy(busy) {
+        uiBusy = !!busy;
+        if (loadingEl) {
+            loadingEl.classList.toggle('hidden', !uiBusy);
+        }
+        document.querySelectorAll('.pawn-sell-btn, .pawn-store-add, .pawn-checkout-btn, .pawn-option').forEach(function (el) {
+            if (uiBusy) el.setAttribute('disabled', 'disabled');
+            else el.removeAttribute('disabled');
+        });
+    }
+
     function setView(view) {
         currentView = view;
+        var isStore = view === 'storefront' || view === 'blackmarket';
+
         dialogView.classList.toggle('hidden', view !== 'dialog');
         sellView.classList.toggle('hidden', view !== 'sell');
-        storefrontView.classList.toggle('hidden', view !== 'storefront');
-        panel.classList.toggle('pawn-dialog-storefront', view === 'storefront');
-        root.classList.toggle('pawn-root-storefront', view === 'storefront');
+        storefrontView.classList.toggle('hidden', !isStore);
+        if (rejectionView) rejectionView.classList.toggle('hidden', view !== 'rejection');
+
+        panel.classList.toggle('pawn-dialog-storefront', isStore);
+        panel.classList.toggle('pawn-theme-bm', view === 'blackmarket');
+        root.classList.toggle('pawn-root-storefront', isStore);
 
         if (view === 'sell') {
             headerLabel.textContent = 'Counter';
+        } else if (view === 'blackmarket') {
+            headerLabel.textContent = 'Black Market';
         } else if (view === 'storefront') {
             headerLabel.textContent = 'Storefront';
+        } else if (view === 'rejection') {
+            headerLabel.textContent = 'Access Denied';
         } else {
             headerLabel.textContent = 'Pawnshop Owner';
         }
@@ -298,8 +324,23 @@
         renderSellMenu(payload);
     }
 
+    function openRejection(payload) {
+        var title = document.getElementById('pawn-rejection-title');
+        var msg = document.getElementById('pawn-rejection-msg');
+        if (title) title.textContent = payload.title || 'Access Denied';
+        if (msg) msg.textContent = payload.message || '';
+        ownerEl.textContent = payload.title || 'Dealer';
+        setView('rejection');
+        openRoot();
+    }
+
     function openStorefront(payload) {
-        setView('storefront');
+        var view = payload.theme === 'blackmarket' ? 'blackmarket' : 'storefront';
+        if (payload.dealerName) ownerEl.textContent = payload.dealerName;
+        if (payload.greeting && view === 'blackmarket') {
+            showMessage(payload.greeting);
+        }
+        setView(view);
         openRoot();
         if (window.W2FStorefront) W2FStorefront.open(payload);
     }
@@ -345,9 +386,18 @@
     });
 
     checkoutBtn.addEventListener('click', function () {
-        if (!window.W2FStorefront || W2FStorefront.viewOnly) return;
-        post('checkout', { cart: W2FStorefront.getCartPayload() });
+        if (uiBusy || !window.W2FStorefront || W2FStorefront.viewOnly) return;
+        post('checkout', {
+            cart: W2FStorefront.getCartPayload(),
+            shop: W2FStorefront.getShop ? W2FStorefront.getShop() : 'pawnshop',
+        });
     });
+
+    if (rejectionClose) {
+        rejectionClose.addEventListener('click', function () {
+            post('rejectionClose', {});
+        });
+    }
 
     document.querySelectorAll('[data-close]').forEach(function (el) {
         el.addEventListener('click', function () {
@@ -365,11 +415,20 @@
         const data = event.data || {};
 
         switch (data.action) {
+            case 'setBusy':
+                setBusy(data.busy);
+                break;
             case 'openDialog':
                 openDialog(data);
                 break;
             case 'closeDialog':
                 closeDialog(false);
+                break;
+            case 'showMessage':
+                showMessage(data.message);
+                break;
+            case 'openRejection':
+                openRejection(data);
                 break;
             case 'openSellMenu':
                 openSellMenu(data);

@@ -2,11 +2,13 @@ PawnNui = {
     open = false,
     view = 'dialog',
     storefrontMode = nil,
+    busy = false,
 }
 
-local function debugPrint(...)
-    if not Config.Debug then return end
-    print(('[w2f-pawnshop][nui] %s'):format(table.concat({ ... }, ' ')))
+local function setBusy(state)
+    PawnNui.busy = state
+    PawnState.busy = state
+    SendNUIMessage({ action = 'setBusy', busy = state })
 end
 
 local function fetchDialog()
@@ -15,6 +17,8 @@ end
 
 local function buildDialogPayload()
     local data = fetchDialog() or {}
+    PawnState.blackMarketAccess = data.blackMarketUnlock == true
+
     return {
         action = 'openDialog',
         ownerName = data.ownerName or Config.Dialog.ownerName,
@@ -22,6 +26,7 @@ local function buildDialogPayload()
         loyalty = data.loyalty,
         demanded = data.demanded,
         blackMarketUnlock = data.blackMarketUnlock,
+        blackMarketContact = data.blackMarketContact,
     }
 end
 
@@ -33,7 +38,6 @@ function PawnNui.OpenDialog()
     PawnNui.storefrontMode = nil
     SetNuiFocus(true, true)
     SendNUIMessage(buildDialogPayload())
-    debugPrint('Dialog opened')
 end
 
 function PawnNui.CloseDialog()
@@ -45,13 +49,21 @@ function PawnNui.CloseDialog()
     PawnNui.open = false
     PawnNui.view = 'dialog'
     PawnNui.storefrontMode = nil
+    setBusy(false)
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'closeDialog' })
-    debugPrint('Dialog closed')
+end
+
+function PawnNui.CloseAll()
+    PawnNui.CloseDialog()
 end
 
 function PawnNui.OpenSellMenu()
+    if PawnNui.busy then return end
+    setBusy(true)
+
     local result = lib.callback.await('w2f-pawnshop:getSellMenu', false)
+    setBusy(false)
 
     PawnNui.open = true
     PawnNui.view = 'sell'
@@ -66,8 +78,6 @@ function PawnNui.OpenSellMenu()
         loyalty = result and result.loyalty,
         demanded = result and result.demanded or {},
     })
-
-    debugPrint('Sell menu opened')
 end
 
 function PawnNui.UpdateSellMenu(payload)
@@ -87,7 +97,11 @@ function PawnNui.UpdateSellMenu(payload)
 end
 
 function PawnNui.OpenStorefront(mode)
+    if PawnNui.busy then return end
+    setBusy(true)
+
     local result = lib.callback.await('w2f-pawnshop:getStorefront', false, mode)
+    setBusy(false)
 
     PawnNui.open = true
     PawnNui.view = 'storefront'
@@ -100,14 +114,57 @@ function PawnNui.OpenStorefront(mode)
         error = result and result.error,
         mode = result and result.mode or mode,
         viewOnly = result and result.viewOnly or (mode == 'view'),
+        theme = 'pawnshop',
         items = result and result.items or {},
         playerMoney = result and result.playerMoney or 0,
         cartMax = Config.CartMaxPerCheckout,
         loyalty = result and result.loyalty,
         demanded = result and result.demanded or {},
     })
+end
 
-    debugPrint('Storefront opened', mode)
+function PawnNui.OpenBlackMarket()
+    if PawnNui.busy then return end
+    setBusy(true)
+
+    local result = lib.callback.await('w2f-pawnshop:getBlackMarket', false)
+    setBusy(false)
+
+    if not result or not result.ok then
+        if result and result.error == 'loyalty_too_low' then
+            PawnNui.open = true
+            PawnNui.view = 'rejection'
+            SetNuiFocus(true, true)
+            SendNUIMessage({
+                action = 'openRejection',
+                title = Config.BlackMarket.dealerName,
+                message = result.rejectionMessage or Config.BlackMarket.rejectionMessage,
+            })
+            return
+        end
+
+        PawnNotify.Error('Cannot open black market right now.')
+        return
+    end
+
+    PawnNui.open = true
+    PawnNui.view = 'blackmarket'
+    PawnNui.storefrontMode = 'buy'
+    SetNuiFocus(true, true)
+
+    SendNUIMessage({
+        action = 'openStorefront',
+        ok = true,
+        theme = 'blackmarket',
+        dealerName = result.dealerName,
+        greeting = result.greeting,
+        mode = 'buy',
+        viewOnly = false,
+        items = result.items or {},
+        playerMoney = result.playerMoney or 0,
+        cartMax = result.cartMax or Config.CartMaxPerCheckout,
+        loyalty = result.loyalty,
+    })
 end
 
 function PawnNui.UpdateStorefront(payload)
@@ -133,6 +190,7 @@ end
 
 RegisterNUICallback('dialogSelect', function(data, cb)
     cb('ok')
+    if PawnNui.busy then return end
 
     local choice = data and data.choice
     if not choice then return end
@@ -143,11 +201,13 @@ RegisterNUICallback('dialogSelect', function(data, cb)
     end
 
     if choice == 'blackmarket' then
-        lib.notify({
-            title = Config.Dialog.ownerName,
-            description = 'The back room is not open yet. Check back later.',
-            type = 'inform',
-        })
+        local dialog = fetchDialog() or {}
+        if dialog.blackMarketContact then
+            SendNUIMessage({
+                action = 'showMessage',
+                message = dialog.blackMarketContact,
+            })
+        end
         return
     end
 
@@ -173,63 +233,68 @@ end)
 
 RegisterNUICallback('storefrontBack', function(_, cb)
     cb('ok')
+    if PawnNui.view == 'blackmarket' then
+        PawnNui.CloseDialog()
+        return
+    end
     backToDialog()
+end)
+
+RegisterNUICallback('rejectionClose', function(_, cb)
+    cb('ok')
+    PawnNui.CloseDialog()
 end)
 
 RegisterNUICallback('sellItem', function(data, cb)
     cb('ok')
+    if PawnNui.busy or not data or type(data.item) ~= 'string' then return end
 
-    if not data or type(data.item) ~= 'string' then return end
-
-    local amount = data.amount
-    if amount == 'all' then
-        amount = -1
-    else
-        amount = tonumber(amount)
-    end
+    local amount = data.amount == 'all' and -1 or tonumber(data.amount)
+    setBusy(true)
 
     local result = lib.callback.await('w2f-pawnshop:sellItem', false, data.item, amount)
+    setBusy(false)
+
     if not result then return end
 
     if result.ok then
+        PawnState.blackMarketAccess = (result.loyalty and result.loyalty.level or 1) >= Config.BlackMarket.minAccessLevel
         local xpLine = result.loyaltyXp and (' (+%s XP)'):format(result.loyaltyXp) or ''
-        lib.notify({
-            title = Config.Dialog.ownerName,
-            description = ('Paid $%s for %sx %s%s.'):format(
-                result.totalPrice,
-                result.amount,
-                Items.Get(result.item) and Items.Get(result.item).label or result.item,
-                xpLine
-            ),
-            type = 'success',
-        })
+        PawnNotify.Success(('Paid $%s for %sx %s%s.'):format(
+            result.totalPrice,
+            result.amount,
+            Items.Get(result.item) and Items.Get(result.item).label or result.item,
+            xpLine
+        ))
         PawnNui.UpdateSellMenu(result)
     else
-        SendNUIMessage({
-            action = 'sellError',
-            error = result.error or 'unknown',
-        })
+        SendNUIMessage({ action = 'sellError', error = result.error or 'unknown' })
     end
 end)
 
 RegisterNUICallback('checkout', function(data, cb)
     cb('ok')
-
-    if PawnNui.storefrontMode == 'view' then return end
+    if PawnNui.busy or PawnNui.storefrontMode == 'view' then return end
 
     local cart = data and data.cart
     if type(cart) ~= 'table' then return end
 
-    local result = lib.callback.await('w2f-pawnshop:checkout', false, cart)
+    setBusy(true)
+
+    local result
+    if data.shop == 'blackmarket' or PawnNui.view == 'blackmarket' then
+        result = lib.callback.await('w2f-pawnshop:blackMarketCheckout', false, cart)
+    else
+        result = lib.callback.await('w2f-pawnshop:checkout', false, cart)
+    end
+
+    setBusy(false)
+
     if not result then return end
 
     if result.ok then
         local xpLine = result.loyaltyXp and (' (+%s XP)'):format(result.loyaltyXp) or ''
-        lib.notify({
-            title = Config.Dialog.ownerName,
-            description = ('Purchase complete — $%s%s.'):format(result.totalPaid, xpLine),
-            type = 'success',
-        })
+        PawnNotify.Success(('Purchase complete — $%s%s.'):format(result.totalPaid, xpLine))
         PawnNui.UpdateStorefront(result)
     else
         SendNUIMessage({
@@ -248,7 +313,16 @@ end)
 RegisterNUICallback('escape', function(_, cb)
     cb('ok')
 
-    if PawnNui.view == 'sell' or PawnNui.view == 'storefront' then
+    if PawnNui.view == 'rejection' then
+        PawnNui.CloseDialog()
+        return
+    end
+
+    if PawnNui.view == 'sell' or PawnNui.view == 'storefront' or PawnNui.view == 'blackmarket' then
+        if PawnNui.view == 'blackmarket' then
+            PawnNui.CloseDialog()
+            return
+        end
         backToDialog()
         return
     end

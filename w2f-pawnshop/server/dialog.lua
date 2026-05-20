@@ -1,10 +1,5 @@
 DialogServer = {}
 
----@param source number
----@return string greeting
----@return table loyaltyProfile
----@return table demanded
----@return boolean blackMarketUnlock
 function DialogServer.BuildForPlayer(source)
     local profile = LoyaltyServer.GetProfile(source)
     local tier = profile.tier
@@ -17,5 +12,12 @@ function DialogServer.BuildForPlayer(source)
         greeting = greeting .. ' ' .. demandMsg
     end
 
-    return greeting, profile, demanded, tier.blackMarketUnlock == true
+    local blackMarketUnlock = tier.blackMarketUnlock == true
+    local blackMarketContact = nil
+
+    if blackMarketUnlock then
+        blackMarketContact = Config.BlackMarket.contactMessage
+    end
+
+    return greeting, profile, demanded, blackMarketUnlock, blackMarketContact
 end
