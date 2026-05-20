@@ -1,0 +1,12 @@
+-- w2f-pawnshop schema (Stage 2+)
+-- Run manually when database features are enabled.
+
+-- CREATE TABLE IF NOT EXISTS `w2f_pawnshop_stock` (
+--     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+--     `item` VARCHAR(64) NOT NULL,
+--     `quantity` INT NOT NULL DEFAULT 0,
+--     `metadata` JSON NULL,
+--     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--     PRIMARY KEY (`id`),
+--     UNIQUE KEY `item_unique` (`item`)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
