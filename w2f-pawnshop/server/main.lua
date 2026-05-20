@@ -3,6 +3,23 @@ local function debugPrint(...)
     print(('[w2f-pawnshop][server] %s'):format(table.concat({ ... }, ' ')))
 end
 
+lib.callback.register('w2f-pawnshop:getDialog', function(source)
+    if not Database.IsReady() then
+        return { ok = false, error = 'database_not_ready' }
+    end
+
+    local greeting, loyalty, demanded, blackMarket = DialogServer.BuildForPlayer(source)
+
+    return {
+        ok = true,
+        ownerName = Config.Dialog.ownerName,
+        greeting = greeting,
+        loyalty = loyalty,
+        demanded = demanded,
+        blackMarketUnlock = blackMarket,
+    }
+end)
+
 lib.callback.register('w2f-pawnshop:getSellMenu', function(source)
     if not Database.IsReady() then
         return { ok = false, error = 'database_not_ready', items = {} }
@@ -11,6 +28,8 @@ lib.callback.register('w2f-pawnshop:getSellMenu', function(source)
     return {
         ok = true,
         items = Transactions.BuildSellMenu(source),
+        loyalty = LoyaltyServer.GetProfile(source),
+        demanded = Demand.GetDemandedList(),
     }
 end)
 
@@ -43,6 +62,8 @@ lib.callback.register('w2f-pawnshop:getStorefront', function(source, mode)
         viewOnly = mode == 'view',
         items = Transactions.BuildStorefront(source, mode),
         playerMoney = Bridge.GetMoney(source, Config.DefaultBuyAccount),
+        loyalty = LoyaltyServer.GetProfile(source),
+        demanded = Demand.GetDemandedList(),
     }
 end)
 
@@ -63,5 +84,5 @@ AddEventHandler('onResourceStart', function(resourceName)
 
     Bridge.Init()
     Database.Init()
-    debugPrint('Pawnshop server ready (Stage 3 — buy & stock view)')
+    debugPrint('Pawnshop server ready (Stage 4 — loyalty & demand)')
 end)

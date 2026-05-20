@@ -182,13 +182,29 @@
             card.className = 'pawn-store-card';
             if (item.stock <= 0) card.classList.add('pawn-store-card-out');
             if (item.loyaltyLocked) card.classList.add('pawn-store-card-locked');
+            if (item.demanded) card.classList.add('pawn-store-card-demanded');
 
             var addDisabled = W2FStorefront.viewOnly || !item.canBuy || item.stock <= 0 || item.loyaltyLocked;
+            var lockLabel = 'Locked';
+            if (item.loyaltyLocked) {
+                if (item.lockReason === 'level') {
+                    lockLabel = 'Requires Lv ' + item.minLoyaltyToBuy + '+';
+                } else if (item.lockReason === 'category') {
+                    lockLabel = 'Category locked';
+                } else {
+                    lockLabel = 'Requires Lv ' + (item.minLoyaltyToBuy || 1) + '+';
+                }
+            }
             var addLabel = W2FStorefront.viewOnly
                 ? 'View only'
                 : (item.loyaltyLocked
-                    ? `Requires loyalty ${item.minLoyaltyToBuy}`
+                    ? lockLabel
                     : (item.stock <= 0 ? 'Out of stock' : 'Add to cart'));
+
+            var demandTag = item.demanded ? '<span class="pawn-demand-badge">Low stock</span>' : '';
+            var priceNote = item.baseBuyPrice && item.baseBuyPrice > item.buyPrice
+                ? '<span class="pawn-store-discount">-' + (W2FStorefront.loyalty && W2FStorefront.loyalty.buyDiscountPercent || 0) + '%</span>'
+                : '';
 
             card.innerHTML = `
                 <div class="pawn-store-card-img-wrap">
@@ -196,10 +212,10 @@
                 </div>
                 <div class="pawn-store-card-body">
                     <span class="pawn-store-card-cat">${item.categoryLabel || item.category}</span>
-                    <h3 class="pawn-store-card-name">${item.label}</h3>
+                    <h3 class="pawn-store-card-name">${item.label} ${demandTag}</h3>
                     <div class="pawn-store-card-meta">
                         <span>Stock <strong>${item.stock}</strong></span>
-                        <span class="pawn-store-card-price">${formatMoney(item.buyPrice)}</span>
+                        <span class="pawn-store-card-price">${formatMoney(item.buyPrice)} ${priceNote}</span>
                     </div>
                     <button type="button" class="pawn-store-add" data-add="${item.name}" ${addDisabled ? 'disabled' : ''}>${addLabel}</button>
                 </div>
@@ -215,11 +231,16 @@
         W2FStorefront.cart = {};
         W2FStorefront.cartMax = payload.cartMax || 25;
         W2FStorefront.playerMoney = payload.playerMoney || 0;
+        W2FStorefront.loyalty = payload.loyalty || null;
 
         titleEl().textContent = W2FStorefront.viewOnly ? 'Stock Ledger' : 'Pawnshop Shelves';
-        balanceEl().textContent = W2FStorefront.viewOnly
+        var balanceText = W2FStorefront.viewOnly
             ? 'View only'
             : ('Balance: ' + formatMoney(W2FStorefront.playerMoney));
+        if (W2FStorefront.loyalty && !W2FStorefront.viewOnly) {
+            balanceText += ' · Lv' + W2FStorefront.loyalty.level + ' (-' + W2FStorefront.loyalty.buyDiscountPercent + '%)';
+        }
+        balanceEl().textContent = balanceText;
 
         showStatus('');
         renderGrid();
@@ -231,6 +252,7 @@
         W2FStorefront.playerMoney = payload.playerMoney != null
             ? payload.playerMoney
             : W2FStorefront.playerMoney;
+        W2FStorefront.loyalty = payload.loyalty || W2FStorefront.loyalty;
 
         if (!W2FStorefront.viewOnly) {
             balanceEl().textContent = 'Balance: ' + formatMoney(W2FStorefront.playerMoney);

@@ -2,26 +2,40 @@ Config = {}
 
 Config.Debug = false
 Config.InteractionDistance = 2.5
-
---- Minimum profit margin between pawnshop buy and sell prices.
 Config.MinimumProfitMargin = 75
 
---- Show out-of-stock items in view-only storefront mode.
 Config.AllowViewingOutOfStock = true
-
---- Framework money accounts (ESX often uses "money"; Qbox maps to cash in bridge).
 Config.DefaultBuyAccount = 'money'
 Config.DefaultSellAccount = 'money'
-
---- Legacy alias for sell payouts.
 Config.SellPaymentAccount = Config.DefaultSellAccount
 
 Config.MaxSellPerAction = 50
-
---- Max total item quantity per checkout (sum of all cart line quantities).
 Config.CartMaxPerCheckout = 25
-
 Config.ItemImagePath = 'nui://ox_inventory/web/images/%s.png'
+
+--- Hide buy items the player cannot purchase (loyalty / category). If false, show as locked.
+Config.HideLockedItems = false
+
+--- Max low-stock items mentioned in NPC greeting.
+Config.DemandedItemLimit = 2
+
+Config.Loyalty = {
+    enabled = true,
+    --- Multipliers applied to catalog loyaltyXp on buys/sells.
+    XPSellMultiplier = 1.0,
+    XPBuyMultiplier = 1.0,
+    --- Extra XP per $100 of sell payout (higher value = more XP).
+    XPPerHundredSold = 2,
+}
+
+Config.LowStock = {
+    --- Stock at or below this count is "demanded".
+    threshold = 3,
+    --- Extra sell price bonus percent when demanded.
+    sellBonusPercent = 15,
+    --- Multiplier on loyalty XP when selling demanded items.
+    xpBonusMultiplier = 1.5,
+}
 
 Config.Ped = {
     model = 's_m_y_shopkeep_01',
@@ -32,7 +46,6 @@ Config.Ped = {
 
 Config.Dialog = {
     ownerName = 'Vincent',
-    greeting = 'Evening. Got something to move, or looking to pick something up?',
 }
 
 Config.Framework = nil

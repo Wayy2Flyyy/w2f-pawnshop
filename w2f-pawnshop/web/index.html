@@ -21,12 +21,14 @@
 
             <div class="pawn-body">
                 <div id="pawn-dialog-view">
+                    <div id="pawn-loyalty-strip" class="pawn-loyalty-strip hidden" aria-label="Loyalty status"></div>
                     <p id="pawn-greeting" class="pawn-greeting"></p>
                     <p id="pawn-message" class="pawn-message hidden" role="status"></p>
                     <nav id="pawn-options" class="pawn-options" aria-label="Conversation options">
                         <button type="button" class="pawn-option" data-choice="sell">Sell Items</button>
                         <button type="button" class="pawn-option" data-choice="buy">Buy Items</button>
                         <button type="button" class="pawn-option" data-choice="stock">View Stock</button>
+                        <button type="button" class="pawn-option pawn-option-special hidden" id="pawn-option-blackmarket" data-choice="blackmarket">Special Inventory</button>
                         <button type="button" class="pawn-option pawn-option-muted" data-choice="nevermind">Nevermind</button>
                     </nav>
                 </div>
@@ -65,6 +67,8 @@
                         <button type="button" class="pawn-sell-back" id="pawn-sell-back">&larr; Back</button>
                         <span class="pawn-sell-title">Sell to Pawnshop</span>
                     </div>
+                    <div id="pawn-sell-loyalty" class="pawn-loyalty-panel hidden"></div>
+                    <p id="pawn-sell-demanded" class="pawn-sell-demanded hidden"></p>
                     <p id="pawn-sell-status" class="pawn-sell-status hidden" role="status"></p>
                     <div id="pawn-sell-list" class="pawn-sell-list"></div>
                     <p id="pawn-sell-empty" class="pawn-sell-empty hidden">Nothing in your pockets we can take right now.</p>
