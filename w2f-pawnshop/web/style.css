@@ -244,3 +244,202 @@ body {
         opacity: 0;
     }
 }
+
+.hidden {
+    display: none !important;
+}
+
+/* --- Sell sub-menu (Stage 2) --- */
+
+.pawn-sell-view {
+    animation: pawn-fade-in 0.2s ease;
+}
+
+.pawn-sell-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.pawn-sell-back {
+    border: none;
+    background: var(--pawn-bg);
+    color: var(--pawn-muted);
+    font-size: 0.8rem;
+    padding: 6px 10px;
+    border-radius: var(--pawn-radius);
+    border: 1px solid var(--pawn-border);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.pawn-sell-back:hover {
+    color: var(--pawn-gold);
+    border-color: var(--pawn-bronze);
+}
+
+.pawn-sell-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pawn-bronze);
+}
+
+.pawn-sell-status {
+    font-size: 0.8rem;
+    color: var(--pawn-gold);
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: var(--pawn-gold-dim);
+    border-left: 2px solid var(--pawn-gold);
+    border-radius: 0 var(--pawn-radius) var(--pawn-radius) 0;
+}
+
+.pawn-sell-status-error {
+    color: #d4a574;
+    border-left-color: #a65c3a;
+}
+
+.pawn-sell-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(52vh, 340px);
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.pawn-sell-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.pawn-sell-list::-webkit-scrollbar-thumb {
+    background: var(--pawn-border);
+    border-radius: 4px;
+}
+
+.pawn-sell-empty {
+    font-family: var(--pawn-font-dialog);
+    font-size: 0.95rem;
+    color: var(--pawn-muted);
+    text-align: center;
+    padding: 20px 8px;
+}
+
+.pawn-sell-card {
+    background: var(--pawn-bg);
+    border: 1px solid var(--pawn-border);
+    border-radius: var(--pawn-radius);
+    padding: 10px;
+}
+
+.pawn-sell-card-top {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.pawn-sell-img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    background: #0e0d0c;
+    border: 1px solid var(--pawn-border);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.pawn-sell-meta {
+    min-width: 0;
+}
+
+.pawn-sell-name {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--pawn-text);
+}
+
+.pawn-sell-owned {
+    font-size: 0.78rem;
+    color: var(--pawn-muted);
+}
+
+.pawn-sell-owned strong {
+    color: var(--pawn-gold);
+}
+
+.pawn-sell-prices {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+}
+
+.pawn-sell-price-row {
+    display: flex;
+    justify-content: space-between;
+    color: var(--pawn-muted);
+}
+
+.pawn-sell-price-final {
+    color: var(--pawn-text);
+    font-weight: 600;
+    padding-top: 4px;
+    border-top: 1px solid var(--pawn-border);
+    margin-top: 2px;
+}
+
+.pawn-sell-price-final span:last-child {
+    color: var(--pawn-gold);
+}
+
+.pawn-sell-bonus {
+    color: var(--pawn-gold);
+}
+
+.pawn-sell-bonus-none {
+    color: var(--pawn-muted);
+}
+
+.pawn-sell-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.pawn-sell-btn {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: var(--pawn-font-ui);
+    color: var(--pawn-bg);
+    background: linear-gradient(180deg, #d4af37 0%, var(--pawn-gold) 100%);
+    border: 1px solid var(--pawn-bronze);
+    border-radius: var(--pawn-radius);
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.pawn-sell-btn:hover {
+    filter: brightness(1.08);
+}
+
+.pawn-sell-btn:active {
+    transform: scale(0.98);
+}
+
+.pawn-sell-btn-alt {
+    color: var(--pawn-text);
+    background: transparent;
+    border-color: var(--pawn-border);
+}
+
+.pawn-sell-btn-alt:hover {
+    border-color: var(--pawn-bronze);
+    color: var(--pawn-gold);
+    filter: none;
+}

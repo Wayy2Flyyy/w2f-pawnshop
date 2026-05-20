@@ -6,32 +6,35 @@ Config.Debug = false
 --- Distance (meters) for ox_target interaction with the pawnshop owner.
 Config.InteractionDistance = 2.5
 
---- Pawnshop owner NPC settings (Stage 1: single location).
+--- Minimum profit margin (pawnshop buy price minus sell payout must exceed this).
+Config.MinimumProfitMargin = 75
+
+--- Account used when paying the player for sold items ('cash', 'bank', etc.).
+Config.SellPaymentAccount = 'cash'
+
+--- Hard cap per sell action (exploit protection).
+Config.MaxSellPerAction = 50
+
+--- ox_inventory image URL pattern (%s = item name).
+Config.ItemImagePath = 'nui://ox_inventory/web/images/%s.png'
+
+--- Pawnshop owner NPC settings.
 Config.Ped = {
-    --- Ped model name or hash string (e.g. 's_m_y_shopkeep_01').
     model = 's_m_y_shopkeep_01',
-
-    --- World position and heading (vector4: x, y, z, w).
     coords = vector4(182.93, -1319.09, 29.32, 320.0),
-
-    --- Scenario played while idle; set to false or '' to disable.
     scenario = 'WORLD_HUMAN_STAND_IMPATIENT',
-
-    --- Blip optional (disabled in Stage 1).
     blip = false,
 }
 
---- NUI dialog copy (customize per server).
+--- NUI dialog copy.
 Config.Dialog = {
     ownerName = 'Vincent',
     greeting = 'Evening. Got something to move, or looking to pick something up?',
     placeholders = {
-        sell = 'Bring your items to the counter — we\'ll appraise them soon.',
         buy = 'Browse what\'s on the shelf once stock is wired up.',
         stock = 'Inventory ledger isn\'t hooked up yet. Check back shortly.',
     },
 }
 
---- Framework auto-detect order: 'qbox' | 'esx' | nil (standalone).
---- Leave nil to auto-detect; set manually to force a bridge.
+--- Framework auto-detect: 'qbox' | 'esx' | nil.
 Config.Framework = nil

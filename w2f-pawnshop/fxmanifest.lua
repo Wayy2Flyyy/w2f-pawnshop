@@ -4,7 +4,7 @@ game 'gta5'
 name 'w2f-pawnshop'
 author 'W2F'
 description 'Realistic NPC-owned dynamic pawnshop'
-version '0.1.0'
+version '0.2.0'
 
 lua54 'yes'
 
@@ -32,11 +32,12 @@ client_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/bridge.lua',
     'server/database.lua',
-    'server/main.lua',
     'server/stock.lua',
-    'server/loyalty.lua',
     'server/transactions.lua',
+    'server/loyalty.lua',
+    'server/main.lua',
 }
 
 ui_page 'web/index.html'
