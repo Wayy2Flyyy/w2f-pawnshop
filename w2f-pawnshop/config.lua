@@ -1,24 +1,28 @@
 Config = {}
 
---- Print debug messages to client/server console when true.
 Config.Debug = false
-
---- Distance (meters) for ox_target interaction with the pawnshop owner.
 Config.InteractionDistance = 2.5
 
---- Minimum profit margin (pawnshop buy price minus sell payout must exceed this).
+--- Minimum profit margin between pawnshop buy and sell prices.
 Config.MinimumProfitMargin = 75
 
---- Account used when paying the player for sold items ('cash', 'bank', etc.).
-Config.SellPaymentAccount = 'cash'
+--- Show out-of-stock items in view-only storefront mode.
+Config.AllowViewingOutOfStock = true
 
---- Hard cap per sell action (exploit protection).
+--- Framework money accounts (ESX often uses "money"; Qbox maps to cash in bridge).
+Config.DefaultBuyAccount = 'money'
+Config.DefaultSellAccount = 'money'
+
+--- Legacy alias for sell payouts.
+Config.SellPaymentAccount = Config.DefaultSellAccount
+
 Config.MaxSellPerAction = 50
 
---- ox_inventory image URL pattern (%s = item name).
+--- Max total item quantity per checkout (sum of all cart line quantities).
+Config.CartMaxPerCheckout = 25
+
 Config.ItemImagePath = 'nui://ox_inventory/web/images/%s.png'
 
---- Pawnshop owner NPC settings.
 Config.Ped = {
     model = 's_m_y_shopkeep_01',
     coords = vector4(182.93, -1319.09, 29.32, 320.0),
@@ -26,15 +30,9 @@ Config.Ped = {
     blip = false,
 }
 
---- NUI dialog copy.
 Config.Dialog = {
     ownerName = 'Vincent',
     greeting = 'Evening. Got something to move, or looking to pick something up?',
-    placeholders = {
-        buy = 'Browse what\'s on the shelf once stock is wired up.',
-        stock = 'Inventory ledger isn\'t hooked up yet. Check back shortly.',
-    },
 }
 
---- Framework auto-detect: 'qbox' | 'esx' | nil.
 Config.Framework = nil

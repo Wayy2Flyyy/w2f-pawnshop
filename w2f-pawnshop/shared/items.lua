@@ -174,3 +174,37 @@ function Items.CalculateFinalSellPrice(itemName, source)
 
     return math.max(1, finalPrice), bonusPercent
 end
+
+--- Server-authoritative buy price (discounts in Stage 4+).
+---@param itemName string
+---@param _source number|nil
+---@return number|nil
+function Items.CalculateBuyPrice(itemName, _source)
+    local item = Items.Get(itemName)
+    if not item then return nil end
+    return math.max(1, math.floor(item.buyPrice))
+end
+
+---@param itemName string
+---@param source number|nil
+---@return boolean canBuy
+---@return boolean lockedByLoyalty
+function Items.CanPlayerBuy(itemName, source)
+    local item = Items.Get(itemName)
+    if not item then return false, false end
+
+    local required = item.minLoyaltyToBuy or 0
+    local level = source and Loyalty.GetPlayerLevel(source) or Loyalty.defaultLevel
+
+    if level < required then
+        return false, true
+    end
+
+    return true, false
+end
+
+---@param category string
+---@return string
+function Items.GetCategoryLabel(category)
+    return Items.categories[category] or category or 'General'
+end

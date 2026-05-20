@@ -7,6 +7,20 @@ local function debugPrint(...)
     print(('[w2f-pawnshop][bridge] %s'):format(table.concat({ ... }, ' ')))
 end
 
+local function normalizeAccount(account)
+    account = account or Config.DefaultBuyAccount
+
+    if Bridge.name == 'qbox' and (account == 'money' or account == 'cash') then
+        return 'cash'
+    end
+
+    if Bridge.name == 'esx' and account == 'cash' then
+        return 'money'
+    end
+
+    return account
+end
+
 local function loadFramework()
     Bridge.Init()
 
@@ -24,8 +38,6 @@ local function loadFramework()
     end
 end
 
----@param source number
----@return table|nil
 function Bridge.GetPlayer(source)
     if not source or source <= 0 then return nil end
     loadFramework()
@@ -46,8 +58,6 @@ function Bridge.GetPlayer(source)
     return nil
 end
 
----@param source number
----@return string|nil
 function Bridge.GetIdentifier(source)
     local player = Bridge.GetPlayer(source)
     if not player then return nil end
@@ -64,9 +74,29 @@ function Bridge.GetIdentifier(source)
 end
 
 ---@param source number
----@param account string
----@param amount number
----@return boolean
+---@param account string|nil
+---@return number
+function Bridge.GetMoney(source, account)
+    local player = Bridge.GetPlayer(source)
+    if not player then return 0 end
+
+    account = normalizeAccount(account or Config.DefaultBuyAccount)
+
+    if Bridge.name == 'esx' then
+        if account == 'money' then
+            return player.getMoney() or 0
+        end
+        local acc = player.getAccount(account)
+        return acc and acc.money or 0
+    end
+
+    if Bridge.name == 'qbox' then
+        return player.Functions.GetMoney(account) or 0
+    end
+
+    return 0
+end
+
 function Bridge.AddMoney(source, account, amount)
     amount = math.floor(tonumber(amount) or 0)
     if amount <= 0 then return false end
@@ -77,10 +107,10 @@ function Bridge.AddMoney(source, account, amount)
         return false
     end
 
-    account = account or Config.SellPaymentAccount
+    account = normalizeAccount(account or Config.DefaultSellAccount)
 
     if Bridge.name == 'esx' then
-        if account == 'cash' or account == 'money' then
+        if account == 'money' then
             player.addMoney(amount)
         else
             player.addAccountMoney(account, amount)
@@ -96,10 +126,6 @@ function Bridge.AddMoney(source, account, amount)
     return false
 end
 
----@param source number
----@param account string
----@param amount number
----@return boolean
 function Bridge.RemoveMoney(source, account, amount)
     amount = math.floor(tonumber(amount) or 0)
     if amount <= 0 then return false end
@@ -107,21 +133,22 @@ function Bridge.RemoveMoney(source, account, amount)
     local player = Bridge.GetPlayer(source)
     if not player then return false end
 
-    account = account or Config.SellPaymentAccount
+    account = normalizeAccount(account or Config.DefaultBuyAccount)
 
     if Bridge.name == 'esx' then
-        if account == 'cash' or account == 'money' then
+        if account == 'money' then
             if player.getMoney() < amount then return false end
             player.removeMoney(amount)
         else
-            if player.getAccount(account).money < amount then return false end
+            local acc = player.getAccount(account)
+            if not acc or acc.money < amount then return false end
             player.removeAccountMoney(account, amount)
         end
         return true
     end
 
     if Bridge.name == 'qbox' then
-        return player.Functions.RemoveMoney(account, amount, 'w2f-pawnshop')
+        return player.Functions.RemoveMoney(account, amount, 'w2f-pawnshop-buy')
     end
 
     return false

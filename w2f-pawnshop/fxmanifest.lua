@@ -4,7 +4,7 @@ game 'gta5'
 name 'w2f-pawnshop'
 author 'W2F'
 description 'Realistic NPC-owned dynamic pawnshop'
-version '0.2.0'
+version '0.3.0'
 
 lua54 'yes'
 
@@ -46,4 +46,5 @@ files {
     'web/index.html',
     'web/style.css',
     'web/app.js',
+    'web/storefront.js',
 }
