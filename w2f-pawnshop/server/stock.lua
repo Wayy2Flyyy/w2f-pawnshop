@@ -67,3 +67,23 @@ function Stock.GetAll()
 
     return map
 end
+
+--- Atomically reduce stock; returns false if insufficient.
+---@param itemName string
+---@param amount number
+---@return boolean
+function Stock.Remove(itemName, amount)
+    amount = math.floor(tonumber(amount) or 0)
+    if amount <= 0 or not Items.IsSellable(itemName) then return false end
+
+    local affected = MySQL.update.await(
+        'UPDATE w2f_pawnshop_stock SET quantity = quantity - ? WHERE item = ? AND quantity >= ?',
+        { amount, itemName, amount }
+    )
+
+    local ok = (affected or 0) > 0
+    if ok then
+        debugPrint('Stock -', amount, itemName)
+    end
+    return ok
+end

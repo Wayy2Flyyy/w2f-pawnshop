@@ -9,7 +9,7 @@
 <body>
     <div id="pawn-root" class="pawn-root hidden" aria-hidden="true">
         <div class="pawn-backdrop" data-close></div>
-        <article class="pawn-dialog" role="dialog" aria-labelledby="pawn-owner">
+        <article id="pawn-panel" class="pawn-dialog" role="dialog" aria-labelledby="pawn-owner">
             <header class="pawn-header">
                 <div class="pawn-portrait" aria-hidden="true"></div>
                 <div class="pawn-header-text">
@@ -31,6 +31,35 @@
                     </nav>
                 </div>
 
+                <div id="pawn-storefront-view" class="pawn-storefront-view hidden" aria-label="Pawnshop storefront">
+                    <div class="pawn-store-layout">
+                        <section class="pawn-store-main">
+                            <div class="pawn-store-toolbar">
+                                <button type="button" class="pawn-store-back" id="pawn-store-back">&larr; Back</button>
+                                <div class="pawn-store-heading">
+                                    <span class="pawn-store-title" id="pawn-store-title">Storefront</span>
+                                    <span class="pawn-store-balance" id="pawn-store-balance"></span>
+                                </div>
+                            </div>
+                            <p id="pawn-store-status" class="pawn-store-status hidden" role="status"></p>
+                            <div id="pawn-store-grid" class="pawn-store-grid"></div>
+                            <p id="pawn-store-empty" class="pawn-store-empty hidden">Nothing on the shelves right now.</p>
+                        </section>
+                        <aside id="pawn-cart-panel" class="pawn-cart-panel">
+                            <h2 class="pawn-cart-heading">Cart</h2>
+                            <div id="pawn-cart-items" class="pawn-cart-items"></div>
+                            <p id="pawn-cart-empty" class="pawn-cart-empty">No items selected.</p>
+                            <div class="pawn-cart-footer">
+                                <div class="pawn-cart-subtotal">
+                                    <span>Subtotal</span>
+                                    <strong id="pawn-cart-subtotal">$0</strong>
+                                </div>
+                                <button type="button" id="pawn-checkout-btn" class="pawn-checkout-btn" disabled>Checkout</button>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+
                 <div id="pawn-sell-view" class="pawn-sell-view hidden" aria-label="Sell items">
                     <div class="pawn-sell-toolbar">
                         <button type="button" class="pawn-sell-back" id="pawn-sell-back">&larr; Back</button>
@@ -43,6 +72,7 @@
             </div>
         </article>
     </div>
+    <script src="storefront.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

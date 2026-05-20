@@ -135,7 +135,7 @@ function Transactions.ProcessSell(source, itemName, amount)
         return { ok = false, error = 'remove_failed' }
     end
 
-    if not Bridge.AddMoney(source, Config.SellPaymentAccount, totalPrice) then
+    if not Bridge.AddMoney(source, Config.DefaultSellAccount, totalPrice) then
         exports.ox_inventory:AddItem(source, itemName, amount)
         return { ok = false, error = 'payment_failed' }
     end
@@ -151,5 +151,242 @@ function Transactions.ProcessSell(source, itemName, amount)
         totalPrice = totalPrice,
         bonusPercent = bonusPercent,
         items = Transactions.BuildSellMenu(source),
+    }
+end
+
+---@param source number
+---@param mode string 'buy' | 'view'
+---@return table
+function Transactions.BuildStorefront(source, mode)
+    local stockMap = Stock.GetAll()
+    local rows = {}
+    local viewOnly = mode == 'view'
+
+    for itemName, cfg in pairs(Items.GetCatalog()) do
+        local stock = stockMap[itemName] or Stock.GetQuantity(itemName)
+        local include = viewOnly
+
+        if not viewOnly then
+            include = stock > 0
+        elseif not Config.AllowViewingOutOfStock and stock <= 0 then
+            include = false
+        end
+
+        if include then
+            local canBuy, loyaltyLocked = Items.CanPlayerBuy(itemName, source)
+            local buyPrice = Items.CalculateBuyPrice(itemName, source)
+
+            rows[#rows + 1] = {
+                name = itemName,
+                label = cfg.label,
+                image = Items.GetImage(itemName),
+                category = cfg.category,
+                categoryLabel = Items.GetCategoryLabel(cfg.category),
+                stock = stock,
+                buyPrice = buyPrice,
+                minLoyaltyToBuy = cfg.minLoyaltyToBuy or 0,
+                canBuy = canBuy and stock > 0,
+                loyaltyLocked = loyaltyLocked,
+            }
+        end
+    end
+
+    table.sort(rows, function(a, b)
+        if a.category == b.category then
+            return a.label < b.label
+        end
+        return a.category < b.category
+    end)
+
+    return rows
+end
+
+---@param source number
+---@param identifier string
+---@param itemName string
+---@param amount number
+---@param unitPrice number
+---@param totalPrice number
+function Transactions.LogBuy(source, identifier, itemName, amount, unitPrice, totalPrice)
+    MySQL.insert.await(
+        [[INSERT INTO w2f_pawnshop_transactions
+            (identifier, item, amount, unit_price, total_price, type)
+          VALUES (?, ?, ?, ?, ?, 'buy')]],
+        { identifier, itemName, amount, unitPrice, totalPrice }
+    )
+    debugPrint('Logged buy', source, itemName, amount, totalPrice)
+end
+
+---@param cart table
+---@return table|nil lines
+---@return string|nil error
+local function normalizeCart(cart)
+    if type(cart) ~= 'table' then
+        return nil, 'invalid_cart'
+    end
+
+    local merged = {}
+    local totalQty = 0
+
+    for i = 1, #cart do
+        local entry = cart[i]
+        if type(entry) ~= 'table' then
+            return nil, 'invalid_cart'
+        end
+
+        local itemName = entry.item or entry.name
+        if type(itemName) ~= 'string' or itemName == '' or not Items.Get(itemName) then
+            return nil, 'invalid_item'
+        end
+
+        local qty = math.floor(tonumber(entry.quantity or entry.amount) or 0)
+        if qty <= 0 then
+            return nil, 'invalid_amount'
+        end
+
+        merged[itemName] = (merged[itemName] or 0) + qty
+    end
+
+    local lines = {}
+    for itemName, qty in pairs(merged) do
+        totalQty = totalQty + qty
+        if totalQty > Config.CartMaxPerCheckout then
+            return nil, 'cart_limit'
+        end
+
+        lines[#lines + 1] = {
+            item = itemName,
+            quantity = qty,
+        }
+    end
+
+    if #lines == 0 then
+        return nil, 'empty_cart'
+    end
+
+    return lines, nil
+end
+
+---@param source number
+---@param cart table
+---@return table
+function Transactions.ProcessCheckout(source, cart)
+    if not Bridge.IsFramework() then
+        return { ok = false, error = 'no_framework' }
+    end
+
+    local identifier = Bridge.GetIdentifier(source)
+    if not identifier then
+        return { ok = false, error = 'no_identifier' }
+    end
+
+    local lines, cartError = normalizeCart(cart)
+    if not lines then
+        return { ok = false, error = cartError }
+    end
+
+    local stockMap = Stock.GetAll()
+    local validated = {}
+    local totalCost = 0
+    local totalXp = 0
+
+    for i = 1, #lines do
+        local line = lines[i]
+        local cfg = Items.Get(line.item)
+        local canBuy, loyaltyLocked = Items.CanPlayerBuy(line.item, source)
+
+        if loyaltyLocked or not canBuy then
+            return { ok = false, error = 'loyalty_locked' }
+        end
+
+        local stock = stockMap[line.item]
+        if stock == nil then
+            stock = Stock.GetQuantity(line.item)
+        end
+
+        if line.quantity > stock then
+            return { ok = false, error = 'insufficient_stock', item = line.item }
+        end
+
+        local unitPrice = Items.CalculateBuyPrice(line.item, source)
+        if not unitPrice then
+            return { ok = false, error = 'invalid_price' }
+        end
+
+        validated[#validated + 1] = {
+            item = line.item,
+            quantity = line.quantity,
+            unitPrice = unitPrice,
+            lineTotal = unitPrice * line.quantity,
+            loyaltyXp = cfg.loyaltyXp or 0,
+        }
+
+        totalCost = totalCost + (unitPrice * line.quantity)
+        totalXp = totalXp + ((cfg.loyaltyXp or 0) * line.quantity)
+    end
+
+    if totalCost <= 0 then
+        return { ok = false, error = 'invalid_total' }
+    end
+
+    local balance = Bridge.GetMoney(source, Config.DefaultBuyAccount)
+    if balance < totalCost then
+        return { ok = false, error = 'insufficient_funds' }
+    end
+
+    if not Bridge.RemoveMoney(source, Config.DefaultBuyAccount, totalCost) then
+        return { ok = false, error = 'payment_failed' }
+    end
+
+    local delivered = {}
+    local stockReduced = {}
+
+    for i = 1, #validated do
+        local v = validated[i]
+        local added = exports.ox_inventory:AddItem(source, v.item, v.quantity)
+
+        if not added then
+            for j = 1, #delivered do
+                local d = delivered[j]
+                exports.ox_inventory:RemoveItem(source, d.item, d.quantity)
+            end
+            for j = 1, #stockReduced do
+                local s = stockReduced[j]
+                Stock.Add(s.item, s.quantity)
+            end
+            Bridge.AddMoney(source, Config.DefaultBuyAccount, totalCost)
+            return { ok = false, error = 'inventory_full' }
+        end
+
+        delivered[#delivered + 1] = v
+
+        if not Stock.Remove(v.item, v.quantity) then
+            exports.ox_inventory:RemoveItem(source, v.item, v.quantity)
+            for j = 1, #delivered - 1 do
+                local d = delivered[j]
+                exports.ox_inventory:RemoveItem(source, d.item, d.quantity)
+            end
+            for j = 1, #stockReduced do
+                local s = stockReduced[j]
+                Stock.Add(s.item, s.quantity)
+            end
+            Bridge.AddMoney(source, Config.DefaultBuyAccount, totalCost)
+            return { ok = false, error = 'insufficient_stock', item = v.item }
+        end
+
+        stockReduced[#stockReduced + 1] = { item = v.item, quantity = v.quantity }
+        Transactions.LogBuy(source, identifier, v.item, v.quantity, v.unitPrice, v.lineTotal)
+    end
+
+    if totalXp > 0 then
+        LoyaltyServer.GrantXp(source, totalXp)
+    end
+
+    return {
+        ok = true,
+        totalPaid = totalCost,
+        loyaltyXp = totalXp,
+        items = Transactions.BuildStorefront(source, 'buy'),
+        playerMoney = Bridge.GetMoney(source, Config.DefaultBuyAccount),
     }
 end
