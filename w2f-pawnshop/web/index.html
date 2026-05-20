@@ -9,26 +9,37 @@
 <body>
     <div id="pawn-root" class="pawn-root hidden" aria-hidden="true">
         <div class="pawn-backdrop" data-close></div>
-        <article class="pawn-dialog" role="dialog" aria-labelledby="pawn-owner" aria-describedby="pawn-greeting">
+        <article class="pawn-dialog" role="dialog" aria-labelledby="pawn-owner">
             <header class="pawn-header">
                 <div class="pawn-portrait" aria-hidden="true"></div>
                 <div class="pawn-header-text">
-                    <span class="pawn-label">Pawnshop Owner</span>
+                    <span class="pawn-label" id="pawn-header-label">Pawnshop Owner</span>
                     <h1 id="pawn-owner" class="pawn-owner-name">Vincent</h1>
                 </div>
                 <button type="button" class="pawn-close" data-close aria-label="Close dialog">&times;</button>
             </header>
 
             <div class="pawn-body">
-                <p id="pawn-greeting" class="pawn-greeting"></p>
-                <p id="pawn-message" class="pawn-message hidden" role="status"></p>
+                <div id="pawn-dialog-view">
+                    <p id="pawn-greeting" class="pawn-greeting"></p>
+                    <p id="pawn-message" class="pawn-message hidden" role="status"></p>
+                    <nav id="pawn-options" class="pawn-options" aria-label="Conversation options">
+                        <button type="button" class="pawn-option" data-choice="sell">Sell Items</button>
+                        <button type="button" class="pawn-option" data-choice="buy">Buy Items</button>
+                        <button type="button" class="pawn-option" data-choice="stock">View Stock</button>
+                        <button type="button" class="pawn-option pawn-option-muted" data-choice="nevermind">Nevermind</button>
+                    </nav>
+                </div>
 
-                <nav id="pawn-options" class="pawn-options" aria-label="Conversation options">
-                    <button type="button" class="pawn-option" data-choice="sell">Sell Items</button>
-                    <button type="button" class="pawn-option" data-choice="buy">Buy Items</button>
-                    <button type="button" class="pawn-option" data-choice="stock">View Stock</button>
-                    <button type="button" class="pawn-option pawn-option-muted" data-choice="nevermind">Nevermind</button>
-                </nav>
+                <div id="pawn-sell-view" class="pawn-sell-view hidden" aria-label="Sell items">
+                    <div class="pawn-sell-toolbar">
+                        <button type="button" class="pawn-sell-back" id="pawn-sell-back">&larr; Back</button>
+                        <span class="pawn-sell-title">Sell to Pawnshop</span>
+                    </div>
+                    <p id="pawn-sell-status" class="pawn-sell-status hidden" role="status"></p>
+                    <div id="pawn-sell-list" class="pawn-sell-list"></div>
+                    <p id="pawn-sell-empty" class="pawn-sell-empty hidden">Nothing in your pockets we can take right now.</p>
+                </div>
             </div>
         </article>
     </div>
