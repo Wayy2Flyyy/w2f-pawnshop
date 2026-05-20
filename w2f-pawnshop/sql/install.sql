@@ -19,3 +19,13 @@ CREATE TABLE IF NOT EXISTS `w2f_pawnshop_transactions` (
     KEY `idx_item` (`item`),
     KEY `idx_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `w2f_pawnshop_loyalty` (
+    `identifier` VARCHAR(128) NOT NULL,
+    `xp` INT NOT NULL DEFAULT 0,
+    `level` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `total_sold` INT NOT NULL DEFAULT 0,
+    `total_bought` INT NOT NULL DEFAULT 0,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`identifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

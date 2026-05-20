@@ -112,99 +112,30 @@ Items = {
     },
 }
 
----@param itemName string
----@return table|nil
 function Items.Get(itemName)
     if not itemName then return nil end
     return Items.catalog[itemName]
 end
 
----@param itemName string
----@return boolean
 function Items.IsSellable(itemName)
     return Items.Get(itemName) ~= nil
 end
 
----@return table<string, table>
 function Items.GetCatalog()
     return Items.catalog
 end
 
---- Resolve display image path for NUI.
----@param itemName string
----@return string
 function Items.GetImage(itemName)
     local item = Items.Get(itemName)
     local imageName = item and item.image or itemName
     return Config.ItemImagePath:format(imageName)
 end
 
---- Loyalty sell bonus percent (Stage 4+). Returns 0 in Stage 2.
----@param _source number
----@return number bonusPercent
-function Items.GetSellBonusPercent(_source)
-    if not Loyalty.enabled then
-        return 0
-    end
-    return 0
-end
-
---- Max allowed unit sell price: strictly below buyPrice - margin.
----@param item table
----@return number
 function Items.GetMaxUnitSellPrice(item)
     local ceiling = item.buyPrice - Config.MinimumProfitMargin
-    return math.max(1, ceiling - 1)
+    return math.max(1, ceiling)
 end
 
---- Server-authoritative unit sell price with margin clamp.
----@param itemName string
----@param source number|nil
----@return number|nil finalPrice
----@return number bonusPercent
-function Items.CalculateFinalSellPrice(itemName, source)
-    local item = Items.Get(itemName)
-    if not item then return nil, 0 end
-
-    local bonusPercent = source and Items.GetSellBonusPercent(source) or 0
-    local bonusAmount = math.floor(item.baseSellPrice * (bonusPercent / 100))
-    local raw = item.baseSellPrice + bonusAmount
-    local maxPrice = Items.GetMaxUnitSellPrice(item)
-    local finalPrice = math.min(raw, maxPrice)
-
-    return math.max(1, finalPrice), bonusPercent
-end
-
---- Server-authoritative buy price (discounts in Stage 4+).
----@param itemName string
----@param _source number|nil
----@return number|nil
-function Items.CalculateBuyPrice(itemName, _source)
-    local item = Items.Get(itemName)
-    if not item then return nil end
-    return math.max(1, math.floor(item.buyPrice))
-end
-
----@param itemName string
----@param source number|nil
----@return boolean canBuy
----@return boolean lockedByLoyalty
-function Items.CanPlayerBuy(itemName, source)
-    local item = Items.Get(itemName)
-    if not item then return false, false end
-
-    local required = item.minLoyaltyToBuy or 0
-    local level = source and Loyalty.GetPlayerLevel(source) or Loyalty.defaultLevel
-
-    if level < required then
-        return false, true
-    end
-
-    return true, false
-end
-
----@param category string
----@return string
 function Items.GetCategoryLabel(category)
     return Items.categories[category] or category or 'General'
 end

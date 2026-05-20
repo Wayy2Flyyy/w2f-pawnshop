@@ -9,12 +9,19 @@ local function debugPrint(...)
     print(('[w2f-pawnshop][nui] %s'):format(table.concat({ ... }, ' ')))
 end
 
+local function fetchDialog()
+    return lib.callback.await('w2f-pawnshop:getDialog', false)
+end
+
 local function buildDialogPayload()
-    local dialog = Config.Dialog
+    local data = fetchDialog() or {}
     return {
         action = 'openDialog',
-        ownerName = dialog.ownerName,
-        greeting = dialog.greeting,
+        ownerName = data.ownerName or Config.Dialog.ownerName,
+        greeting = data.greeting or '',
+        loyalty = data.loyalty,
+        demanded = data.demanded,
+        blackMarketUnlock = data.blackMarketUnlock,
     }
 end
 
@@ -56,6 +63,8 @@ function PawnNui.OpenSellMenu()
         ok = result and result.ok,
         error = result and result.error,
         items = result and result.items or {},
+        loyalty = result and result.loyalty,
+        demanded = result and result.demanded or {},
     })
 
     debugPrint('Sell menu opened')
@@ -67,15 +76,16 @@ function PawnNui.UpdateSellMenu(payload)
         ok = payload.ok,
         error = payload.error,
         items = payload.items or {},
+        loyalty = payload.loyalty,
         sold = payload.ok and {
             item = payload.item,
             amount = payload.amount,
             totalPrice = payload.totalPrice,
+            loyaltyXp = payload.loyaltyXp,
         } or nil,
     })
 end
 
----@param mode string 'buy' | 'view'
 function PawnNui.OpenStorefront(mode)
     local result = lib.callback.await('w2f-pawnshop:getStorefront', false, mode)
 
@@ -93,6 +103,8 @@ function PawnNui.OpenStorefront(mode)
         items = result and result.items or {},
         playerMoney = result and result.playerMoney or 0,
         cartMax = Config.CartMaxPerCheckout,
+        loyalty = result and result.loyalty,
+        demanded = result and result.demanded or {},
     })
 
     debugPrint('Storefront opened', mode)
@@ -105,8 +117,10 @@ function PawnNui.UpdateStorefront(payload)
         error = payload.error,
         items = payload.items or {},
         playerMoney = payload.playerMoney,
+        loyalty = payload.loyalty,
         purchased = payload.ok and {
             totalPaid = payload.totalPaid,
+            loyaltyXp = payload.loyaltyXp,
         } or nil,
     })
 end
@@ -125,6 +139,15 @@ RegisterNUICallback('dialogSelect', function(data, cb)
 
     if choice == 'nevermind' then
         PawnNui.CloseDialog()
+        return
+    end
+
+    if choice == 'blackmarket' then
+        lib.notify({
+            title = Config.Dialog.ownerName,
+            description = 'The back room is not open yet. Check back later.',
+            type = 'inform',
+        })
         return
     end
 
@@ -169,12 +192,14 @@ RegisterNUICallback('sellItem', function(data, cb)
     if not result then return end
 
     if result.ok then
+        local xpLine = result.loyaltyXp and (' (+%s XP)'):format(result.loyaltyXp) or ''
         lib.notify({
             title = Config.Dialog.ownerName,
-            description = ('Paid $%s for %sx %s.'):format(
+            description = ('Paid $%s for %sx %s%s.'):format(
                 result.totalPrice,
                 result.amount,
-                Items.Get(result.item) and Items.Get(result.item).label or result.item
+                Items.Get(result.item) and Items.Get(result.item).label or result.item,
+                xpLine
             ),
             type = 'success',
         })
@@ -199,9 +224,10 @@ RegisterNUICallback('checkout', function(data, cb)
     if not result then return end
 
     if result.ok then
+        local xpLine = result.loyaltyXp and (' (+%s XP)'):format(result.loyaltyXp) or ''
         lib.notify({
             title = Config.Dialog.ownerName,
-            description = ('Purchase complete — $%s.'):format(result.totalPaid),
+            description = ('Purchase complete — $%s%s.'):format(result.totalPaid, xpLine),
             type = 'success',
         })
         PawnNui.UpdateStorefront(result)

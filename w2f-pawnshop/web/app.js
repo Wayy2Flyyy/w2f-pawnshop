@@ -21,6 +21,10 @@
     const sellBackBtn = document.getElementById('pawn-sell-back');
     const storeBackBtn = document.getElementById('pawn-store-back');
     const checkoutBtn = document.getElementById('pawn-checkout-btn');
+    const loyaltyStrip = document.getElementById('pawn-loyalty-strip');
+    const sellLoyaltyPanel = document.getElementById('pawn-sell-loyalty');
+    const sellDemandedEl = document.getElementById('pawn-sell-demanded');
+    const blackMarketBtn = document.getElementById('pawn-option-blackmarket');
 
     let isOpen = false;
     let currentView = 'dialog';
@@ -68,6 +72,73 @@
         messageEl.classList.remove('hidden');
     }
 
+    function renderLoyaltyHtml(loyalty, compact) {
+        if (!loyalty) return '';
+
+        var progress = loyalty.nextLevel
+            ? ('<div class="pawn-loyalty-progress"><div class="pawn-loyalty-progress-fill" style="width:' + loyalty.progressPercent + '%"></div></div>' +
+               '<span class="pawn-loyalty-progress-text">' + loyalty.xp + ' / ' + loyalty.nextLevelXp + ' XP</span>')
+            : '<span class="pawn-loyalty-maxed">Max reputation</span>';
+
+        if (compact) {
+            return (
+                '<div class="pawn-loyalty-compact">' +
+                '<span class="pawn-loyalty-level">Lv ' + loyalty.level + ' · ' + loyalty.label + '</span>' +
+                '<span class="pawn-loyalty-perks">+' + loyalty.sellBonusPercent + '% sell · -' + loyalty.buyDiscountPercent + '% buy</span>' +
+                progress +
+                '</div>'
+            );
+        }
+
+        return (
+            '<div class="pawn-loyalty-full">' +
+            '<div class="pawn-loyalty-row"><span>Reputation</span><strong>Lv ' + loyalty.level + ' — ' + loyalty.label + '</strong></div>' +
+            '<div class="pawn-loyalty-row"><span>XP</span><strong>' + loyalty.xp + (loyalty.nextLevelXp ? (' → ' + loyalty.nextLevelXp) : '') + '</strong></div>' +
+            progress +
+            '<div class="pawn-loyalty-row"><span>Sell bonus</span><strong>+' + loyalty.sellBonusPercent + '%</strong></div>' +
+            '<div class="pawn-loyalty-row"><span>Buy discount</span><strong>-' + loyalty.buyDiscountPercent + '%</strong></div>' +
+            '</div>'
+        );
+    }
+
+    function applyLoyaltyStrip(loyalty, blackMarketUnlock) {
+        if (!loyaltyStrip) return;
+
+        if (!loyalty) {
+            loyaltyStrip.classList.add('hidden');
+            loyaltyStrip.innerHTML = '';
+        } else {
+            loyaltyStrip.classList.remove('hidden');
+            loyaltyStrip.innerHTML = renderLoyaltyHtml(loyalty, true);
+        }
+
+        if (blackMarketBtn) {
+            blackMarketBtn.classList.toggle('hidden', !blackMarketUnlock);
+        }
+    }
+
+    function applySellLoyalty(payload) {
+        if (sellLoyaltyPanel) {
+            if (payload.loyalty) {
+                sellLoyaltyPanel.classList.remove('hidden');
+                sellLoyaltyPanel.innerHTML = renderLoyaltyHtml(payload.loyalty, false);
+            } else {
+                sellLoyaltyPanel.classList.add('hidden');
+            }
+        }
+
+        if (sellDemandedEl) {
+            var demanded = payload.demanded || [];
+            if (demanded.length > 0) {
+                var names = demanded.slice(0, 2).map(function (d) { return d.label; });
+                sellDemandedEl.textContent = 'In demand: ' + names.join(', ');
+                sellDemandedEl.classList.remove('hidden');
+            } else {
+                sellDemandedEl.classList.add('hidden');
+            }
+        }
+    }
+
     function showSellStatus(text, isError) {
         if (!text) {
             sellStatus.classList.add('hidden');
@@ -107,6 +178,7 @@
         ownerEl.textContent = payload.ownerName || 'Owner';
         greetingEl.textContent = payload.greeting || '';
         clearMessage();
+        applyLoyaltyStrip(payload.loyalty, payload.blackMarketUnlock);
         setView('dialog');
         openRoot();
     }
@@ -136,17 +208,25 @@
 
     function renderSellItem(item) {
         const card = document.createElement('div');
-        card.className = 'pawn-sell-card';
+        card.className = 'pawn-sell-card' + (item.demanded ? ' pawn-sell-card-demanded' : '');
 
-        const bonusLine = item.bonus > 0
-            ? `<span class="pawn-sell-bonus">+${formatMoney(item.bonus)} bonus</span>`
-            : '<span class="pawn-sell-bonus pawn-sell-bonus-none">No bonus</span>';
+        const demandBadge = item.demanded
+            ? '<span class="pawn-demand-badge">In demand</span>'
+            : '';
+
+        const loyaltyLine = item.loyaltyBonus > 0
+            ? `<span class="pawn-sell-bonus">+${formatMoney(item.loyaltyBonus)} loyalty</span>`
+            : '<span class="pawn-sell-bonus pawn-sell-bonus-none">—</span>';
+
+        const demandLine = item.demandBonus > 0
+            ? `<span class="pawn-sell-bonus pawn-sell-bonus-demand">+${formatMoney(item.demandBonus)} demand</span>`
+            : '<span class="pawn-sell-bonus pawn-sell-bonus-none">—</span>';
 
         card.innerHTML = `
             <div class="pawn-sell-card-top">
                 <img class="pawn-sell-img" src="${item.image}" alt="" />
                 <div class="pawn-sell-meta">
-                    <span class="pawn-sell-name">${item.label}</span>
+                    <span class="pawn-sell-name">${item.label} ${demandBadge}</span>
                     <span class="pawn-sell-owned">You have: <strong>${item.owned}</strong></span>
                 </div>
             </div>
@@ -156,8 +236,12 @@
                     <span>${formatMoney(item.baseSellPrice)}</span>
                 </div>
                 <div class="pawn-sell-price-row">
-                    <span>Bonus</span>
-                    ${bonusLine}
+                    <span>Loyalty</span>
+                    ${loyaltyLine}
+                </div>
+                <div class="pawn-sell-price-row">
+                    <span>Demand</span>
+                    ${demandLine}
                 </div>
                 <div class="pawn-sell-price-row pawn-sell-price-final">
                     <span>Offer</span>
@@ -198,16 +282,19 @@
         setView('sell');
         openRoot();
         showSellStatus('');
+        applySellLoyalty(payload);
         renderSellMenu(payload);
     }
 
     function updateSellMenu(payload) {
         if (payload.sold) {
+            var xp = payload.sold.loyaltyXp ? (' +' + payload.sold.loyaltyXp + ' XP') : '';
             showSellStatus(
-                `Sold ${payload.sold.amount} for ${formatMoney(payload.sold.totalPrice)}.`,
+                'Sold ' + payload.sold.amount + ' for ' + formatMoney(payload.sold.totalPrice) + xp + '.',
                 false
             );
         }
+        if (payload.loyalty) applySellLoyalty(payload);
         renderSellMenu(payload);
     }
 

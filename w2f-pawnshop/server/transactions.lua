@@ -5,15 +5,10 @@ local function debugPrint(...)
     print(('[w2f-pawnshop][transactions] %s'):format(table.concat({ ... }, ' ')))
 end
 
----@param source number
----@return number
 local function getOwnedCount(source, itemName)
     return exports.ox_inventory:GetItemCount(source, itemName) or 0
 end
 
----@param itemName string
----@param amount number
----@return number|nil
 local function sanitizeAmount(amount)
     amount = math.floor(tonumber(amount) or 0)
     if amount <= 0 then return nil end
@@ -23,9 +18,30 @@ local function sanitizeAmount(amount)
     return amount
 end
 
---- Build sell-menu rows for items the player owns and are in the catalog.
+--- Server-side purchase eligibility (loyalty level + category + item rule).
 ---@param source number
----@return table
+---@param itemName string
+---@return boolean canBuy
+---@return boolean locked
+---@return string|nil lockReason
+function Transactions.CanPlayerBuy(source, itemName)
+    local cfg = Items.Get(itemName)
+    if not cfg then return false, true, 'invalid' end
+
+    local level = LoyaltyServer.GetLevel(source)
+    local required = cfg.minLoyaltyToBuy or 0
+
+    if level < required then
+        return false, true, 'level'
+    end
+
+    if not LoyaltyServer.HasCategory(source, cfg.category) then
+        return false, true, 'category'
+    end
+
+    return true, false, nil
+end
+
 function Transactions.BuildSellMenu(source)
     local rows = {}
 
@@ -33,8 +49,7 @@ function Transactions.BuildSellMenu(source)
         local owned = getOwnedCount(source, itemName)
         if owned > 0 then
             local cfg = Items.Get(itemName)
-            local finalPrice, bonusPercent = Items.CalculateFinalSellPrice(itemName, source)
-            local bonusAmount = math.floor(cfg.baseSellPrice * (bonusPercent / 100))
+            local finalPrice, breakdown = Pricing.GetSellPrice(source, itemName)
 
             rows[#rows + 1] = {
                 name = itemName,
@@ -42,8 +57,12 @@ function Transactions.BuildSellMenu(source)
                 image = Items.GetImage(itemName),
                 owned = owned,
                 baseSellPrice = cfg.baseSellPrice,
-                bonus = bonusAmount,
-                bonusPercent = bonusPercent,
+                bonus = breakdown.loyaltyBonus + breakdown.demandBonus,
+                loyaltyBonus = breakdown.loyaltyBonus,
+                demandBonus = breakdown.demandBonus,
+                loyaltyBonusPercent = breakdown.loyaltyBonusPercent,
+                demandBonusPercent = breakdown.demandBonusPercent,
+                demanded = breakdown.demanded,
                 finalSellPrice = finalPrice,
                 category = cfg.category,
             }
@@ -51,18 +70,15 @@ function Transactions.BuildSellMenu(source)
     end
 
     table.sort(rows, function(a, b)
+        if a.demanded ~= b.demanded then
+            return a.demanded
+        end
         return a.label < b.label
     end)
 
     return rows
 end
 
----@param source number
----@param identifier string
----@param itemName string
----@param amount number
----@param unitPrice number
----@param totalPrice number
 function Transactions.LogSell(source, identifier, itemName, amount, unitPrice, totalPrice)
     MySQL.insert.await(
         [[INSERT INTO w2f_pawnshop_transactions
@@ -73,11 +89,6 @@ function Transactions.LogSell(source, identifier, itemName, amount, unitPrice, t
     debugPrint('Logged sell', source, itemName, amount, totalPrice)
 end
 
---- Process a validated sell and return refreshed menu payload.
----@param source number
----@param itemName string
----@param amount number
----@return table
 function Transactions.ProcessSell(source, itemName, amount)
     local cfg = Items.Get(itemName)
     if not cfg then
@@ -102,17 +113,12 @@ function Transactions.ProcessSell(source, itemName, amount)
         amount = owned
     end
 
-    local unitPrice, bonusPercent = Items.CalculateFinalSellPrice(itemName, source)
+    local unitPrice, breakdown = Pricing.GetSellPrice(source, itemName)
     if not unitPrice then
         return { ok = false, error = 'invalid_price' }
     end
 
-    local maxUnit = Items.GetMaxUnitSellPrice(cfg)
-    if unitPrice >= cfg.buyPrice - Config.MinimumProfitMargin then
-        return { ok = false, error = 'price_violation' }
-    end
-
-    if unitPrice > maxUnit then
+    if unitPrice > Items.GetMaxUnitSellPrice(cfg) then
         return { ok = false, error = 'price_violation' }
     end
 
@@ -143,20 +149,23 @@ function Transactions.ProcessSell(source, itemName, amount)
     Stock.Add(itemName, amount)
     Transactions.LogSell(source, identifier, itemName, amount, unitPrice, totalPrice)
 
+    local xp = Pricing.CalculateSellXp(source, itemName, amount, unitPrice, breakdown.demanded)
+    LoyaltyServer.GrantXp(source, xp, 'sell', amount)
+
+    local items = Transactions.BuildSellMenu(source)
+
     return {
         ok = true,
         item = itemName,
         amount = amount,
         unitPrice = unitPrice,
         totalPrice = totalPrice,
-        bonusPercent = bonusPercent,
-        items = Transactions.BuildSellMenu(source),
+        loyaltyXp = xp,
+        items = items,
+        loyalty = LoyaltyServer.GetProfile(source),
     }
 end
 
----@param source number
----@param mode string 'buy' | 'view'
----@return table
 function Transactions.BuildStorefront(source, mode)
     local stockMap = Stock.GetAll()
     local rows = {}
@@ -173,21 +182,31 @@ function Transactions.BuildStorefront(source, mode)
         end
 
         if include then
-            local canBuy, loyaltyLocked = Items.CanPlayerBuy(itemName, source)
-            local buyPrice = Items.CalculateBuyPrice(itemName, source)
+            local canBuy, loyaltyLocked, lockReason = Transactions.CanPlayerBuy(source, itemName)
+            local buyPrice = Pricing.GetBuyPrice(source, itemName)
+            local demanded = Demand.IsDemanded(itemName, stock)
 
-            rows[#rows + 1] = {
-                name = itemName,
-                label = cfg.label,
-                image = Items.GetImage(itemName),
-                category = cfg.category,
-                categoryLabel = Items.GetCategoryLabel(cfg.category),
-                stock = stock,
-                buyPrice = buyPrice,
-                minLoyaltyToBuy = cfg.minLoyaltyToBuy or 0,
-                canBuy = canBuy and stock > 0,
-                loyaltyLocked = loyaltyLocked,
-            }
+            if Config.HideLockedItems and loyaltyLocked and not viewOnly then
+                include = false
+            end
+
+            if include then
+                rows[#rows + 1] = {
+                    name = itemName,
+                    label = cfg.label,
+                    image = Items.GetImage(itemName),
+                    category = cfg.category,
+                    categoryLabel = Items.GetCategoryLabel(cfg.category),
+                    stock = stock,
+                    buyPrice = buyPrice,
+                    baseBuyPrice = cfg.buyPrice,
+                    minLoyaltyToBuy = cfg.minLoyaltyToBuy or 0,
+                    canBuy = canBuy and stock > 0,
+                    loyaltyLocked = loyaltyLocked,
+                    lockReason = lockReason,
+                    demanded = demanded,
+                }
+            end
         end
     end
 
@@ -201,12 +220,6 @@ function Transactions.BuildStorefront(source, mode)
     return rows
 end
 
----@param source number
----@param identifier string
----@param itemName string
----@param amount number
----@param unitPrice number
----@param totalPrice number
 function Transactions.LogBuy(source, identifier, itemName, amount, unitPrice, totalPrice)
     MySQL.insert.await(
         [[INSERT INTO w2f_pawnshop_transactions
@@ -217,9 +230,6 @@ function Transactions.LogBuy(source, identifier, itemName, amount, unitPrice, to
     debugPrint('Logged buy', source, itemName, amount, totalPrice)
 end
 
----@param cart table
----@return table|nil lines
----@return string|nil error
 local function normalizeCart(cart)
     if type(cart) ~= 'table' then
         return nil, 'invalid_cart'
@@ -267,9 +277,6 @@ local function normalizeCart(cart)
     return lines, nil
 end
 
----@param source number
----@param cart table
----@return table
 function Transactions.ProcessCheckout(source, cart)
     if not Bridge.IsFramework() then
         return { ok = false, error = 'no_framework' }
@@ -293,7 +300,7 @@ function Transactions.ProcessCheckout(source, cart)
     for i = 1, #lines do
         local line = lines[i]
         local cfg = Items.Get(line.item)
-        local canBuy, loyaltyLocked = Items.CanPlayerBuy(line.item, source)
+        local canBuy, loyaltyLocked = Transactions.CanPlayerBuy(source, line.item)
 
         if loyaltyLocked or not canBuy then
             return { ok = false, error = 'loyalty_locked' }
@@ -308,7 +315,7 @@ function Transactions.ProcessCheckout(source, cart)
             return { ok = false, error = 'insufficient_stock', item = line.item }
         end
 
-        local unitPrice = Items.CalculateBuyPrice(line.item, source)
+        local unitPrice = Pricing.GetBuyPrice(source, line.item)
         if not unitPrice then
             return { ok = false, error = 'invalid_price' }
         end
@@ -318,11 +325,10 @@ function Transactions.ProcessCheckout(source, cart)
             quantity = line.quantity,
             unitPrice = unitPrice,
             lineTotal = unitPrice * line.quantity,
-            loyaltyXp = cfg.loyaltyXp or 0,
         }
 
         totalCost = totalCost + (unitPrice * line.quantity)
-        totalXp = totalXp + ((cfg.loyaltyXp or 0) * line.quantity)
+        totalXp = totalXp + Pricing.CalculateBuyXp(line.item, line.quantity)
     end
 
     if totalCost <= 0 then
@@ -378,9 +384,11 @@ function Transactions.ProcessCheckout(source, cart)
         Transactions.LogBuy(source, identifier, v.item, v.quantity, v.unitPrice, v.lineTotal)
     end
 
-    if totalXp > 0 then
-        LoyaltyServer.GrantXp(source, totalXp)
+    local boughtQty = 0
+    for i = 1, #validated do
+        boughtQty = boughtQty + validated[i].quantity
     end
+    LoyaltyServer.GrantXp(source, totalXp, 'buy', boughtQty)
 
     return {
         ok = true,
@@ -388,5 +396,6 @@ function Transactions.ProcessCheckout(source, cart)
         loyaltyXp = totalXp,
         items = Transactions.BuildStorefront(source, 'buy'),
         playerMoney = Bridge.GetMoney(source, Config.DefaultBuyAccount),
+        loyalty = LoyaltyServer.GetProfile(source),
     }
 end
