@@ -288,22 +288,6 @@ Handled in [`server/security.lua`](w2f-pawnshop/server/security.lua) and transac
 
 ---
 
-## Testing checklist
-
-- [ ] Resource starts without errors; both peds spawn
-- [ ] ox_target opens dialog on owner; sell/buy/view work
-- [ ] Selling removes items, pays money, increases stock
-- [ ] Buying charges money, gives items, decreases stock
-- [ ] Loyalty XP saves and greetings change by tier
-- [ ] Low-stock items show demand bonus and dialog hint
-- [ ] Sell price stays below safe margin vs buy price
-- [ ] Level 4+: *Black Market Contact* and dealer interaction
-- [ ] Below level 4: dealer hidden or rejection message
-- [ ] Black market checkout reduces BM stock and persists after restart
-- [ ] ESC / close releases NUI focus
-
----
-
 ## Credits
 
 **Author:** Wayy2Flyyy
