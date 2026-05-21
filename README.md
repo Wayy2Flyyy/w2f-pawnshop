@@ -4,6 +4,12 @@ A realistic, NPC-owned pawnshop for FiveM with **player-driven stock**, a **five
 
 **Current version:** `0.5.0` · Resource path: [`w2f-pawnshop/`](w2f-pawnshop/)
 
+## Preview 
+<img width="1280" height="767" alt="image" src="https://github.com/user-attachments/assets/57068444-10a4-434c-b310-f7ebf1a14a37" />
+<img width="355" height="311" alt="image" src="https://github.com/user-attachments/assets/8bb79c8f-6af2-47ba-a1ff-1a90c5c3f916" />
+<img width="871" height="581" alt="image" src="https://github.com/user-attachments/assets/4183da0e-77bc-47d8-b95d-66b52a8d7812" />
+
+
 ---
 
 ## Overview
