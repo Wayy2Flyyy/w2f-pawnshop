@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>W2F Pawnshop</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div id="pawn-root" class="pawn-root hidden" aria-hidden="true">
+        <div class="pawn-backdrop" data-close></div>
+        <div id="pawn-loading" class="pawn-loading hidden" aria-hidden="true">
+            <div class="pawn-loading-spinner"></div>
+            <span>Processing…</span>
+        </div>
+        <article id="pawn-panel" class="pawn-dialog" role="dialog" aria-labelledby="pawn-owner">
+            <header class="pawn-header">
+                <div class="pawn-portrait" aria-hidden="true"></div>
+                <div class="pawn-header-text">
+                    <span class="pawn-label" id="pawn-header-label">Pawnshop Owner</span>
+                    <h1 id="pawn-owner" class="pawn-owner-name">Vincent</h1>
+                </div>
+                <button type="button" class="pawn-close" data-close aria-label="Close dialog">&times;</button>
+            </header>
+
+            <div class="pawn-body">
+                <div id="pawn-dialog-view">
+                    <div id="pawn-loyalty-strip" class="pawn-loyalty-strip hidden" aria-label="Loyalty status"></div>
+                    <p id="pawn-greeting" class="pawn-greeting"></p>
+                    <p id="pawn-message" class="pawn-message hidden" role="status"></p>
+                    <nav id="pawn-options" class="pawn-options" aria-label="Conversation options">
+                        <button type="button" class="pawn-option" data-choice="sell">Sell Items</button>
+                        <button type="button" class="pawn-option" data-choice="buy">Buy Items</button>
+                        <button type="button" class="pawn-option" data-choice="stock">View Stock</button>
+                        <button type="button" class="pawn-option pawn-option-special hidden" id="pawn-option-blackmarket" data-choice="blackmarket">Black Market Contact</button>
+                        <button type="button" class="pawn-option pawn-option-muted" data-choice="nevermind">Nevermind</button>
+                    </nav>
+                </div>
+
+                <div id="pawn-storefront-view" class="pawn-storefront-view hidden" aria-label="Pawnshop storefront">
+                    <div class="pawn-store-layout">
+                        <section class="pawn-store-main">
+                            <div class="pawn-store-toolbar">
+                                <button type="button" class="pawn-store-back" id="pawn-store-back">&larr; Back</button>
+                                <div class="pawn-store-heading">
+                                    <span class="pawn-store-title" id="pawn-store-title">Storefront</span>
+                                    <span class="pawn-store-balance" id="pawn-store-balance"></span>
+                                </div>
+                            </div>
+                            <p id="pawn-store-status" class="pawn-store-status hidden" role="status"></p>
+                            <div id="pawn-store-grid" class="pawn-store-grid"></div>
+                            <p id="pawn-store-empty" class="pawn-empty-state hidden">Nothing on the shelves right now.</p>
+                            <p id="pawn-store-loyalty-low" class="pawn-empty-state hidden">Your reputation is too low for some of this stock.</p>
+                        </section>
+                        <aside id="pawn-cart-panel" class="pawn-cart-panel">
+                            <h2 class="pawn-cart-heading">Cart</h2>
+                            <div id="pawn-cart-items" class="pawn-cart-items"></div>
+                            <p id="pawn-cart-empty" class="pawn-cart-empty pawn-empty-state">No items selected.</p>
+                            <div class="pawn-cart-footer">
+                                <div class="pawn-cart-subtotal">
+                                    <span>Subtotal</span>
+                                    <strong id="pawn-cart-subtotal">$0</strong>
+                                </div>
+                                <button type="button" id="pawn-checkout-btn" class="pawn-checkout-btn" disabled>Checkout</button>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+
+                <div id="pawn-rejection-view" class="pawn-rejection-view hidden">
+                    <p class="pawn-rejection-title" id="pawn-rejection-title">Access Denied</p>
+                    <p class="pawn-rejection-msg" id="pawn-rejection-msg"></p>
+                    <button type="button" class="pawn-option" id="pawn-rejection-close">Leave</button>
+                </div>
+
+                <div id="pawn-sell-view" class="pawn-sell-view hidden" aria-label="Sell items">
+                    <div class="pawn-sell-toolbar">
+                        <button type="button" class="pawn-sell-back" id="pawn-sell-back">&larr; Back</button>
+                        <span class="pawn-sell-title">Sell to Pawnshop</span>
+                    </div>
+                    <div id="pawn-sell-loyalty" class="pawn-loyalty-panel hidden"></div>
+                    <p id="pawn-sell-demanded" class="pawn-sell-demanded hidden"></p>
+                    <p id="pawn-sell-status" class="pawn-sell-status hidden" role="status"></p>
+                    <div id="pawn-sell-list" class="pawn-sell-list"></div>
+                    <p id="pawn-sell-empty" class="pawn-empty-state hidden">Nothing in your pockets we can take right now.</p>
+                </div>
+            </div>
+        </article>
+    </div>
+    <script src="storefront.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
