@@ -19,6 +19,7 @@ shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
     'shared/debug.lua',
+    'shared/framework.lua',
     'shared/bridge.lua',
     'shared/items.lua',
     'shared/loyalty.lua',
@@ -26,6 +27,7 @@ shared_scripts {
 }
 
 client_scripts {
+    'client/framework.lua',
     'client/notify.lua',
     'client/state.lua',
     'client/ped.lua',
@@ -40,6 +42,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/security.lua',
     'server/notify.lua',
+    'server/framework.lua',
     'server/bridge.lua',
     'server/database.lua',
     'server/stock.lua',
