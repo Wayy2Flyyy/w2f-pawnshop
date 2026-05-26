@@ -44,7 +44,7 @@ Config.HideLockedItems = false
 Config.DemandedItemLimit = 2
 
 --- Force ESX / Qbox / auto-detect (nil = auto).
-Config.Framework = nil
+Config.Framework = Config.Framework or 'auto'
 
 Config.Loyalty = {
     enabled = true,
