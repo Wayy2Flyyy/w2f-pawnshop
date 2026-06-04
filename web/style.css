@@ -1294,3 +1294,45 @@ body {
     }
 }
 
+
+/* Temporary NUI visibility fallback for FiveM CEF debugging. Keep after .hidden so it wins. */
+.pawn-root.visible,
+.pawn-root.visible.hidden {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.pawn-root.visible .pawn-dialog {
+    visibility: visible !important;
+    opacity: 1;
+    pointer-events: auto !important;
+}
+
+.pawn-debug-view {
+    padding: 8px 0;
+}
+
+.pawn-debug-title {
+    font-family: var(--pawn-font-dialog);
+    font-size: 1.15rem;
+    color: var(--pawn-gold);
+    margin-bottom: 10px;
+}
+
+.pawn-debug-message,
+.pawn-debug-help {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--pawn-text);
+    margin-bottom: 10px;
+}
+
+.pawn-debug-help {
+    color: var(--pawn-muted);
+}
+
+.pawn-debug-panel {
+    outline: 2px solid rgba(201, 162, 39, 0.5);
+}

@@ -5,10 +5,33 @@ PawnNui = {
     busy = false,
 }
 
+local function nuiDebug(message, payload)
+    if payload ~= nil then
+        local encoded = '<unserializable>'
+        if json and json.encode then
+            local ok, result = pcall(json.encode, payload)
+            if ok then encoded = result end
+        end
+        print(('[w2f-pawnshop][nui] %s %s'):format(message, encoded))
+    else
+        print(('[w2f-pawnshop][nui] %s'):format(message))
+    end
+end
+
+local function sendPawnMessage(payload)
+    nuiDebug('SendNUIMessage payload sent:', payload)
+    SendNUIMessage(payload)
+end
+
+local function setPawnNuiFocus(hasFocus, hasCursor, reason)
+    nuiDebug(('SetNuiFocus(%s, %s) reached%s'):format(tostring(hasFocus), tostring(hasCursor), reason and (' for ' .. reason) or ''))
+    SetNuiFocus(hasFocus, hasCursor)
+end
+
 local function setBusy(state)
     PawnNui.busy = state
     PawnState.busy = state
-    SendNUIMessage({ action = 'setBusy', busy = state })
+    sendPawnMessage({ action = 'setBusy', busy = state })
 end
 
 local function fetchDialog()
@@ -31,18 +54,22 @@ local function buildDialogPayload()
 end
 
 function PawnNui.OpenDialog()
-    if PawnNui.open and PawnNui.view == 'dialog' then return end
+    nuiDebug('PawnNui.OpenDialog() called')
+    if PawnNui.open and PawnNui.view == 'dialog' then
+        nuiDebug('PawnNui.OpenDialog() is already marked open; resending payload to force browser visibility')
+    end
 
     PawnNui.open = true
     PawnNui.view = 'dialog'
     PawnNui.storefrontMode = nil
-    SetNuiFocus(true, true)
-    SendNUIMessage(buildDialogPayload())
+    setPawnNuiFocus(true, true, 'openDialog')
+    local payload = buildDialogPayload()
+    sendPawnMessage(payload)
 end
 
 function PawnNui.CloseDialog()
     if not PawnNui.open then
-        SetNuiFocus(false, false)
+        setPawnNuiFocus(false, false, 'close')
         return
     end
 
@@ -50,8 +77,8 @@ function PawnNui.CloseDialog()
     PawnNui.view = 'dialog'
     PawnNui.storefrontMode = nil
     setBusy(false)
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'closeDialog' })
+    setPawnNuiFocus(false, false, 'close')
+    sendPawnMessage({ action = 'closeDialog' })
 end
 
 function PawnNui.CloseAll()
@@ -68,9 +95,9 @@ function PawnNui.OpenSellMenu()
     PawnNui.open = true
     PawnNui.view = 'sell'
     PawnNui.storefrontMode = nil
-    SetNuiFocus(true, true)
+    setPawnNuiFocus(true, true, 'open')
 
-    SendNUIMessage({
+    sendPawnMessage({
         action = 'openSellMenu',
         ok = result and result.ok,
         error = result and result.error,
@@ -81,7 +108,7 @@ function PawnNui.OpenSellMenu()
 end
 
 function PawnNui.UpdateSellMenu(payload)
-    SendNUIMessage({
+    sendPawnMessage({
         action = 'updateSellMenu',
         ok = payload.ok,
         error = payload.error,
@@ -106,9 +133,9 @@ function PawnNui.OpenStorefront(mode)
     PawnNui.open = true
     PawnNui.view = 'storefront'
     PawnNui.storefrontMode = mode
-    SetNuiFocus(true, true)
+    setPawnNuiFocus(true, true, 'open')
 
-    SendNUIMessage({
+    sendPawnMessage({
         action = 'openStorefront',
         ok = result and result.ok,
         error = result and result.error,
@@ -134,8 +161,8 @@ function PawnNui.OpenBlackMarket()
         if result and result.error == 'loyalty_too_low' then
             PawnNui.open = true
             PawnNui.view = 'rejection'
-            SetNuiFocus(true, true)
-            SendNUIMessage({
+            setPawnNuiFocus(true, true, 'open')
+            sendPawnMessage({
                 action = 'openRejection',
                 title = Config.BlackMarket.dealerName,
                 message = result.rejectionMessage or Config.BlackMarket.rejectionMessage,
@@ -150,9 +177,9 @@ function PawnNui.OpenBlackMarket()
     PawnNui.open = true
     PawnNui.view = 'blackmarket'
     PawnNui.storefrontMode = 'buy'
-    SetNuiFocus(true, true)
+    setPawnNuiFocus(true, true, 'open')
 
-    SendNUIMessage({
+    sendPawnMessage({
         action = 'openStorefront',
         ok = true,
         theme = 'blackmarket',
@@ -168,7 +195,7 @@ function PawnNui.OpenBlackMarket()
 end
 
 function PawnNui.UpdateStorefront(payload)
-    SendNUIMessage({
+    sendPawnMessage({
         action = 'updateStorefront',
         ok = payload.ok,
         error = payload.error,
@@ -182,10 +209,33 @@ function PawnNui.UpdateStorefront(payload)
     })
 end
 
+function PawnNui.DebugOpen()
+    nuiDebug('PawnNui.DebugOpen() called')
+    PawnNui.open = true
+    PawnNui.view = 'debug'
+    PawnNui.storefrontMode = nil
+    setPawnNuiFocus(true, true, 'debugOpen')
+    sendPawnMessage({
+        action = 'debugOpen',
+        message = '/testpawnnui debugOpen received. Browser JS and NUI message routing are working if this panel is visible.',
+        timestamp = GetGameTimer(),
+    })
+end
+
+RegisterCommand('testpawn', function()
+    print('[w2f-pawnshop] testpawn command used')
+    PawnNui.OpenDialog()
+end, false)
+
+RegisterCommand('testpawnnui', function()
+    print('[w2f-pawnshop] testpawnnui command used')
+    PawnNui.DebugOpen()
+end, false)
+
 local function backToDialog()
     PawnNui.view = 'dialog'
     PawnNui.storefrontMode = nil
-    SendNUIMessage(buildDialogPayload())
+    sendPawnMessage(buildDialogPayload())
 end
 
 RegisterNUICallback('dialogSelect', function(data, cb)
@@ -203,7 +253,7 @@ RegisterNUICallback('dialogSelect', function(data, cb)
     if choice == 'blackmarket' then
         local dialog = fetchDialog() or {}
         if dialog.blackMarketContact then
-            SendNUIMessage({
+            sendPawnMessage({
                 action = 'showMessage',
                 message = dialog.blackMarketContact,
             })
@@ -268,7 +318,7 @@ RegisterNUICallback('sellItem', function(data, cb)
         ))
         PawnNui.UpdateSellMenu(result)
     else
-        SendNUIMessage({ action = 'sellError', error = result.error or 'unknown' })
+        sendPawnMessage({ action = 'sellError', error = result.error or 'unknown' })
     end
 end)
 
@@ -297,7 +347,7 @@ RegisterNUICallback('checkout', function(data, cb)
         PawnNotify.Success(('Purchase complete — $%s%s.'):format(result.totalPaid, xpLine))
         PawnNui.UpdateStorefront(result)
     else
-        SendNUIMessage({
+        sendPawnMessage({
             action = 'storefrontError',
             error = result.error or 'unknown',
             item = result.item,

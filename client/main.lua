@@ -1,4 +1,5 @@
 local function bootstrap()
+    print(('[w2f-pawnshop][client] resource start bootstrap for %s'):format(GetCurrentResourceName()))
     Bridge.Init()
     PawnState.SyncBlackMarketAccess()
 
@@ -36,6 +37,7 @@ local function bootstrap()
 end
 
 CreateThread(function()
+    print(('[w2f-pawnshop][client] resource client thread started for %s'):format(GetCurrentResourceName()))
     while not NetworkIsPlayerActive(PlayerId()) do
         Wait(500)
     end
